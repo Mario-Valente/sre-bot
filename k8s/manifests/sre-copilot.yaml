@@ -1,0 +1,131 @@
+# =============================================================================
+# SRE Copilot Kubernetes Deployment
+# =============================================================================
+# Deploy the SRE Copilot agent to Kubernetes
+#
+# Prerequisites:
+#   1. Build the Docker image:
+#      docker build -t sre-copilot:latest .
+#      kind load docker-image sre-copilot:latest --name sre-bot
+#
+#   2. Create the secret with your configuration:
+#      kubectl create secret generic sre-copilot-secrets \
+#        --from-literal=OPENAI_API_KEY=sk-xxx \
+#        --from-literal=SLACK_BOT_TOKEN=xoxb-xxx \
+#        --from-literal=SLACK_APP_TOKEN=xapp-xxx \
+#        --from-literal=SLACK_SIGNING_SECRET=xxx \
+#        --from-literal=GITHUB_TOKEN=ghp_xxx
+#
+#   3. Apply this manifest:
+#      kubectl apply -f k8s/manifests/sre-copilot.yaml
+# =============================================================================
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sre-copilot-config
+  labels:
+    app: sre-copilot
+data:
+  # LLM Configuration
+  LLM_PROVIDER: "openai"
+  OPENAI_MODEL: "gpt-4o"
+  LLM_TEMPERATURE: "0.1"
+  LLM_MAX_TOKENS: "4096"
+
+  # Input Sources
+  ENABLE_WEBHOOK: "true"
+  ENABLE_SLACK_LISTENER: "true"
+  WEBHOOK_HOST: "0.0.0.0"
+  WEBHOOK_PORT: "8000"
+
+  # Observability Stack (in-cluster)
+  PROMETHEUS_URL: "http://prometheus-prometheus.monitoring.svc.cluster.local:9090"
+  LOKI_URL: "http://loki-gateway.monitoring.svc.cluster.local:80"
+  TEMPO_URL: "http://tempo.monitoring.svc.cluster.local:3200"
+
+  # Slack
+  SLACK_ALERT_CHANNEL: "alerts"
+
+  # GitHub
+  GITHUB_ORG: ""
+
+  # Database
+  DATABASE_URL: "sqlite+aiosqlite:///./sre_bot.db"
+
+  # Timeouts
+  QUERY_TIMEOUT_SECONDS: "30.0"
+  LLM_TIMEOUT_SECONDS: "60.0"
+
+  # Investigation
+  LOOKBACK_MINUTES: "30"
+  RECENT_DEPLOY_HOURS: "2"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-copilot
+  labels:
+    app: sre-copilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sre-copilot
+  template:
+    metadata:
+      labels:
+        app: sre-copilot
+    spec:
+      containers:
+        - name: sre-copilot
+          image: sre-copilot:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: sre-copilot-config
+            - secretRef:
+                name: sre-copilot-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sre-copilot
+  labels:
+    app: sre-copilot
+spec:
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: http
+      nodePort: 30800
+      protocol: TCP
+      name: http
+  selector:
+    app: sre-copilot

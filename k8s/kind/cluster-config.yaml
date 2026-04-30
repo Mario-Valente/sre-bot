@@ -1,0 +1,53 @@
+# =============================================================================
+# Kind Cluster Configuration for SRE Copilot Development
+# =============================================================================
+# Creates a local Kubernetes cluster with port mappings for observability stack
+#
+# Usage:
+#   kind create cluster --config k8s/kind/cluster-config.yaml --name sre-bot
+# =============================================================================
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: sre-bot
+
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # Grafana
+      - containerPort: 30300
+        hostPort: 3000
+        protocol: TCP
+      # Prometheus
+      - containerPort: 30909
+        hostPort: 9090
+        protocol: TCP
+      # Loki
+      - containerPort: 30310
+        hostPort: 3100
+        protocol: TCP
+      # Tempo
+      - containerPort: 30320
+        hostPort: 3200
+        protocol: TCP
+      # Webhook (SRE Copilot)
+      - containerPort: 30800
+        hostPort: 8000
+        protocol: TCP
+
+  # Worker node for better resource distribution
+  - role: worker
+
+# Networking configuration
+networking:
+  # Use Calico-compatible settings
+  disableDefaultCNI: false
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"

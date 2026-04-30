@@ -1,0 +1,64 @@
+# =============================================================================
+# Helm Values: Grafana Tempo
+# =============================================================================
+# Chart: https://github.com/grafana/helm-charts/tree/main/charts/tempo
+#
+# Install:
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm install tempo grafana/tempo -n monitoring -f k8s/helm-values/tempo.yaml
+# =============================================================================
+
+# Use single binary mode for local dev
+tempo:
+  # Resource limits
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 250m
+
+  # Retention
+  retention: 48h
+
+  # Receivers
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: "0.0.0.0:4318"
+        grpc:
+          endpoint: "0.0.0.0:4317"
+
+  # Storage configuration
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+  # Search configuration
+  search:
+    enabled: true
+
+  # Metrics generator (for service graph)
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+
+# Service configuration
+service:
+  type: NodePort
+  nodePort: 30320
+
+# Persistence
+persistence:
+  enabled: true
+  size: 10Gi
+
+# ServiceMonitor for Prometheus scraping
+serviceMonitor:
+  enabled: true
