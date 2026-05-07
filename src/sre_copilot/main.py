@@ -1,6 +1,7 @@
 """Main entrypoint for the SRE Copilot agent."""
 
 import asyncio
+import logging
 import signal
 import sys
 from typing import NoReturn
@@ -8,6 +9,15 @@ from typing import NoReturn
 import structlog
 
 from sre_copilot.config import get_settings
+
+settings = get_settings()
+log_level_name = settings.log_level.upper()
+log_level = getattr(logging, log_level_name, logging.INFO)
+
+logging.basicConfig(
+    level=log_level,
+    format="%(message)s",
+)
 
 # Configure structured logging
 structlog.configure(

@@ -62,6 +62,24 @@ class TestExtractContext:
         assert "errors" in result
         assert any("namespace" in e for e in result["errors"])
 
+    @pytest.mark.asyncio
+    async def test_extract_missing_cluster_defaults_to_unknown(self):
+        """Test that missing cluster is enriched with a safe default."""
+        alert = AlertContext(
+            alert_name="Test",
+            severity="warning",
+            service_name="payment-api",
+            cluster="",
+            namespace="production",
+            timestamp=datetime.utcnow(),
+        )
+        state = AgentState(alert=alert)
+
+        result = await extract_context(state)
+
+        assert "errors" not in result
+        assert result["alert"].cluster == "unknown"
+
 
 class TestParseAlertmanagerPayload:
     """Tests for Alertmanager payload parsing."""
@@ -119,3 +137,39 @@ class TestParseAlertmanagerPayload:
         # Other -> info
         payload["alerts"][0]["labels"]["severity"] = "unknown"
         assert parse_alertmanager_payload(payload).severity == "info"
+
+    def test_parse_with_common_labels_and_annotations_fallback(self):
+        """Test parsing fields from Alertmanager common labels/annotations."""
+        payload = {
+            "status": "firing",
+            "commonLabels": {
+                "alertname": "AlertmanagerClusterFailedToSendAlerts",
+                "severity": "critical",
+                "service": "prometheus-alertmanager",
+                "namespace": "monitoring",
+                "cluster": "kind-dev",
+            },
+            "commonAnnotations": {
+                "summary": "Alertmanager failed to send notifications",
+                "runbook_url": "https://runbooks.example.com/alertmanager-send-failures",
+            },
+            "alerts": [
+                {
+                    "status": "firing",
+                    "labels": {
+                        "pod": "alertmanager-main-0",
+                    },
+                    "annotations": {},
+                }
+            ],
+        }
+
+        alert = parse_alertmanager_payload(payload)
+
+        assert alert.alert_name == "AlertmanagerClusterFailedToSendAlerts"
+        assert alert.severity == "critical"
+        assert alert.service_name == "prometheus-alertmanager"
+        assert alert.namespace == "monitoring"
+        assert alert.cluster == "kind-dev"
+        assert "failed to send notifications" in alert.description
+        assert alert.runbook_url == "https://runbooks.example.com/alertmanager-send-failures"

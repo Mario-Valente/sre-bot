@@ -29,14 +29,14 @@ metadata:
     app: sre-copilot
 data:
   # LLM Configuration
-  LLM_PROVIDER: "openai"
-  OPENAI_MODEL: "gpt-4o"
+  LLM_PROVIDER: "anthropic"
+  ANTHROPIC_MODEL: "claude-sonnet-4-20250514"
   LLM_TEMPERATURE: "0.1"
   LLM_MAX_TOKENS: "4096"
 
   # Input Sources
   ENABLE_WEBHOOK: "true"
-  ENABLE_SLACK_LISTENER: "true"
+  ENABLE_SLACK_LISTENER: "false"
   WEBHOOK_HOST: "0.0.0.0"
   WEBHOOK_PORT: "8000"
 
@@ -46,7 +46,7 @@ data:
   TEMPO_URL: "http://tempo.monitoring.svc.cluster.local:3200"
 
   # Slack
-  SLACK_ALERT_CHANNEL: "alerts"
+  SLACK_ALERT_CHANNEL: "alertas"
 
   # GitHub
   GITHUB_ORG: ""
@@ -104,13 +104,13 @@ spec:
               path: /health
               port: http
             initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 40
           readinessProbe:
             httpGet:
               path: /ready
               port: http
             initialDelaySeconds: 5
-            periodSeconds: 10
+            periodSeconds: 30
 
 ---
 apiVersion: v1

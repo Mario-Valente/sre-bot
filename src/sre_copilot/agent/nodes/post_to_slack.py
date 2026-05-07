@@ -49,7 +49,16 @@ async def post_to_slack(state: AgentState) -> StateUpdate:
             log.warning("Slack bot token not configured")
             return {"errors": ["Slack bot token not configured"]}
 
-        client = AsyncWebClient(token=settings.slack_bot_token.get_secret_value())
+        token = settings.slack_bot_token.get_secret_value()
+        if not token.startswith("xoxb-"):
+            log.warning("invalid Slack bot token type", token_prefix=token[:16])
+            return {
+                "errors": [
+                    "Slack bot token inválido: esperado token xoxb com escopo chat:write:bot"
+                ]
+            }
+
+        client = AsyncWebClient(token=token)
 
         # Format message
         blocks = _format_analysis_blocks(state.alert, state.analysis)

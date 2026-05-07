@@ -126,25 +126,83 @@ def _register_routes(app: FastAPI) -> None:
                 message=f"Alert status '{webhook.status}' ignored",
             )
 
-        # Filter for critical alerts
-        critical_alerts = [
-            a for a in webhook.alerts
-            if a.get("labels", {}).get("severity") == "critical"
-            and a.get("status") == "firing"
-        ]
+        # Filter for actionable alerts (aligned with Alertmanager route)
+        allowed_severities = {"critical", "warning"}
+        critical_alerts: list[dict[str, Any]] = []
+        evaluated_alerts: list[dict[str, Any]] = []
+        for alert in webhook.alerts:
+            labels = {
+                **webhook.groupLabels,
+                **webhook.commonLabels,
+                **alert.get("labels", {}),
+            }
+            severity = str(labels.get("severity", "")).lower()
+            alert_status = str(alert.get("status") or webhook.status).lower()
+            matches = severity in allowed_severities and alert_status == "firing"
+
+            evaluated_alerts.append(
+                {
+                    "alertname": labels.get("alertname"),
+                    "service": labels.get("service") or labels.get("service_name"),
+                    "severity": severity,
+                    "status": alert_status,
+                    "matches_filter": matches,
+                }
+            )
+
+            if matches:
+                critical_alerts.append(alert)
+
+        log.info(
+            "alert filtering completed",
+            critical_count=len(critical_alerts),
+            evaluated_count=len(evaluated_alerts),
+            evaluated_alerts=evaluated_alerts,
+        )
 
         if not critical_alerts:
-            log.debug("no critical firing alerts")
+            observed = [
+                {
+                    "severity": str(
+                        ({
+                            **webhook.groupLabels,
+                            **webhook.commonLabels,
+                            **a.get("labels", {}),
+                        }).get("severity", "")
+                    ).lower(),
+                    "status": str(a.get("status") or webhook.status).lower(),
+                }
+                for a in webhook.alerts
+            ]
+            log.info(
+                "no actionable firing alerts",
+                allowed_severities=sorted(allowed_severities),
+                observed_alerts=observed,
+            )
             return WebhookResponse(
                 status="ignored",
-                message="No critical firing alerts to process",
+                message="No actionable firing alerts to process",
             )
 
         # Generate investigation ID
         investigation_id = f"inv-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
         # Process each critical alert
-        for alert in critical_alerts:
+        for index, alert in enumerate(critical_alerts):
+            labels = {
+                **webhook.groupLabels,
+                **webhook.commonLabels,
+                **alert.get("labels", {}),
+            }
+
+            log.info(
+                "scheduling alert background task",
+                investigation_id=investigation_id,
+                alert_index=index,
+                alertname=labels.get("alertname"),
+                service=labels.get("service") or labels.get("service_name"),
+            )
+
             background_tasks.add_task(
                 _process_alert,
                 alert,
@@ -160,7 +218,7 @@ def _register_routes(app: FastAPI) -> None:
 
         return WebhookResponse(
             status="accepted",
-            message=f"Processing {len(critical_alerts)} critical alert(s)",
+            message=f"Processing {len(critical_alerts)} actionable alert(s)",
             investigation_id=investigation_id,
         )
 
@@ -250,13 +308,27 @@ async def _process_alert(
     )
 
     try:
+        log.info(
+            "background processing started",
+            alert_status=alert.get("status"),
+            alert_labels=alert.get("labels", {}),
+        )
+
         # Parse alert into context
-        alert_context = parse_alertmanager_payload({"alerts": [alert]})
+        payload_for_parser = {
+            "alerts": [alert],
+            "commonLabels": full_payload.get("commonLabels", {}),
+            "groupLabels": full_payload.get("groupLabels", {}),
+            "commonAnnotations": full_payload.get("commonAnnotations", {}),
+        }
+        alert_context = parse_alertmanager_payload(payload_for_parser)
 
         log.info(
-            "starting investigation",
+            "alert context parsed",
             service=alert_context.service_name,
             namespace=alert_context.namespace,
+            cluster=alert_context.cluster,
+            severity=alert_context.severity,
         )
 
         # Create initial state
@@ -264,6 +336,12 @@ async def _process_alert(
         initial_state = AgentState(
             alert=alert_context,
             slack_channel=settings.slack_alert_channel if settings.slack_bot_token else None,
+        )
+
+        log.info(
+            "initial state created",
+            slack_enabled=bool(settings.slack_bot_token),
+            slack_channel=initial_state.slack_channel,
         )
 
         # Run investigation
@@ -274,6 +352,12 @@ async def _process_alert(
             has_analysis=final_state.get("analysis") is not None,
             errors=len(final_state.get("errors", [])),
         )
+
+        if final_state.get("errors"):
+            log.warning("investigation completed with errors", errors=final_state.get("errors", []))
+
+        if final_state.get("analysis") is None:
+            log.warning("investigation completed without analysis")
 
     except Exception as e:
         log.exception("investigation failed")

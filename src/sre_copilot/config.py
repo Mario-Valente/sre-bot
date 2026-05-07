@@ -127,6 +127,11 @@ class Settings(BaseSettings):
     )
 
     # === Timeouts ===
+    log_level: str = Field(
+        default="INFO",
+        description="Application log level (DEBUG, INFO, WARNING, ERROR)",
+    )
+
     query_timeout_seconds: float = Field(
         default=30.0,
         gt=0,

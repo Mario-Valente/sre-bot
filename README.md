@@ -44,6 +44,9 @@ SLACK_SIGNING_SECRET=...
 # GitHub (opcional)
 GITHUB_TOKEN=ghp-...
 GITHUB_ORG=sua-org
+
+# Logs
+LOG_LEVEL=INFO
 ```
 
 ### 3. Instalar e Rodar

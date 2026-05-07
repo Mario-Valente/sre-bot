@@ -29,6 +29,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 # Copy project files
 COPY pyproject.toml ./
 COPY src ./src
+COPY README.md ./ 
 
 # Build wheel
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels .

@@ -34,8 +34,6 @@ async def extract_context(state: AgentState) -> StateUpdate:
             errors.append("Missing required field: service_name")
         if not alert.namespace:
             errors.append("Missing required field: namespace")
-        if not alert.cluster:
-            errors.append("Missing required field: cluster")
 
         if errors:
             log.warning("alert validation failed", errors=errors)
@@ -95,6 +93,9 @@ def _enrich_alert(alert: AlertContext) -> AlertContext:
             labels = raw.get("labels", {})
             enriched.pod = labels.get("pod") or labels.get("pod_name")
 
+    if not enriched.cluster:
+        enriched.cluster = "unknown"
+
     return enriched
 
 
@@ -135,7 +136,21 @@ def parse_alertmanager_payload(payload: dict) -> AlertContext:
     )
 
     labels = alert_data.get("labels", {})
+    common_labels = payload.get("commonLabels", {})
+    group_labels = payload.get("groupLabels", {})
     annotations = alert_data.get("annotations", {})
+    common_annotations = payload.get("commonAnnotations", {})
+
+    def _annotation(name: str, default: str = "") -> str:
+        return annotations.get(name) or common_annotations.get(name) or default
+
+    def _label(name: str, default: str = "") -> str:
+        return (
+            labels.get(name)
+            or common_labels.get(name)
+            or group_labels.get(name)
+            or default
+        )
 
     # Parse timestamp
     starts_at = alert_data.get("startsAt", "")
@@ -147,22 +162,22 @@ def parse_alertmanager_payload(payload: dict) -> AlertContext:
             pass
 
     # Map severity
-    severity_raw = labels.get("severity", "warning").lower()
+    severity_raw = _label("severity", "warning").lower()
     severity = "critical" if severity_raw == "critical" else (
         "warning" if severity_raw == "warning" else "info"
     )
 
     return AlertContext(
-        alert_name=labels.get("alertname", "UnknownAlert"),
+        alert_name=_label("alertname", "UnknownAlert"),
         severity=severity,
-        service_name=labels.get("service") or labels.get("service_name", ""),
-        cluster=labels.get("cluster", ""),
-        namespace=labels.get("namespace", ""),
-        pod=labels.get("pod") or labels.get("pod_name"),
-        status_code=_safe_int(labels.get("status_code")),
+        service_name=_label("service") or _label("service_name"),
+        cluster=_label("cluster"),
+        namespace=_label("namespace"),
+        pod=_label("pod") or _label("pod_name") or None,
+        status_code=_safe_int(_label("status_code") or None),
         timestamp=timestamp,
-        description=annotations.get("description") or annotations.get("summary", ""),
-        runbook_url=annotations.get("runbook_url"),
+        description=_annotation("description") or _annotation("summary"),
+        runbook_url=_annotation("runbook_url") or None,
         raw_payload=payload,
     )
 
