@@ -1,4 +1,4 @@
-# SRE Copilot
+# SRE BOT AGENT
 
 Bot autônomo para triage inicial de incidentes críticos. Analisa alertas do Alertmanager, coleta dados de Prometheus/Loki/Tempo/GitHub e gera análise de causa raiz usando LLM.
 
