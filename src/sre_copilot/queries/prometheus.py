@@ -27,90 +27,87 @@ class MetricType(str, Enum):
 PROMETHEUS_TEMPLATES: dict[MetricType, Template] = {
     # CPU usage rate for containers in a service
     MetricType.CPU_USAGE: Template(
-        'sum(rate(container_cpu_usage_seconds_total{'
+        "sum(rate(container_cpu_usage_seconds_total{"
         'namespace="$namespace", '
         'pod=~"$service.*", '
         'container!="POD", '
         'container!=""'
-        '}[5m])) by (pod)'
+        "}[5m])) by (pod)"
     ),
     # Memory usage for containers in a service
     MetricType.MEMORY_USAGE: Template(
-        'sum(container_memory_working_set_bytes{'
+        "sum(container_memory_working_set_bytes{"
         'namespace="$namespace", '
         'pod=~"$service.*", '
         'container!="POD", '
         'container!=""'
-        '}) by (pod)'
+        "}) by (pod)"
     ),
     # HTTP 5xx error rate (errors / total requests)
     MetricType.ERROR_RATE: Template(
-        'sum(rate(http_requests_total{'
+        "sum(rate(http_requests_total{"
         'namespace="$namespace", '
         'service="$service", '
         'status=~"5.."'
-        '}[5m])) / '
-        'sum(rate(http_requests_total{'
+        "}[5m])) / "
+        "sum(rate(http_requests_total{"
         'namespace="$namespace", '
         'service="$service"'
-        '}[5m]))'
+        "}[5m]))"
     ),
     # P50 latency
     MetricType.LATENCY_P50: Template(
-        'histogram_quantile(0.50, '
-        'sum(rate(http_request_duration_seconds_bucket{'
+        "histogram_quantile(0.50, "
+        "sum(rate(http_request_duration_seconds_bucket{"
         'namespace="$namespace", '
         'service="$service"'
-        '}[5m])) by (le))'
+        "}[5m])) by (le))"
     ),
     # P95 latency
     MetricType.LATENCY_P95: Template(
-        'histogram_quantile(0.95, '
-        'sum(rate(http_request_duration_seconds_bucket{'
+        "histogram_quantile(0.95, "
+        "sum(rate(http_request_duration_seconds_bucket{"
         'namespace="$namespace", '
         'service="$service"'
-        '}[5m])) by (le))'
+        "}[5m])) by (le))"
     ),
     # P99 latency
     MetricType.LATENCY_P99: Template(
-        'histogram_quantile(0.99, '
-        'sum(rate(http_request_duration_seconds_bucket{'
+        "histogram_quantile(0.99, "
+        "sum(rate(http_request_duration_seconds_bucket{"
         'namespace="$namespace", '
         'service="$service"'
-        '}[5m])) by (le))'
+        "}[5m])) by (le))"
     ),
     # Request rate (requests per second)
     MetricType.REQUEST_RATE: Template(
-        'sum(rate(http_requests_total{'
-        'namespace="$namespace", '
-        'service="$service"'
-        '}[5m]))'
+        'sum(rate(http_requests_total{namespace="$namespace", service="$service"}[5m]))'
     ),
     # Saturation - CPU throttling
     MetricType.SATURATION: Template(
-        'sum(rate(container_cpu_cfs_throttled_seconds_total{'
+        "sum(rate(container_cpu_cfs_throttled_seconds_total{"
         'namespace="$namespace", '
         'pod=~"$service.*"'
-        '}[5m])) by (pod)'
+        "}[5m])) by (pod)"
     ),
     # Availability (successful requests / total)
     MetricType.AVAILABILITY: Template(
-        'sum(rate(http_requests_total{'
+        "sum(rate(http_requests_total{"
         'namespace="$namespace", '
         'service="$service", '
         'status=~"2..|3.."'
-        '}[5m])) / '
-        'sum(rate(http_requests_total{'
+        "}[5m])) / "
+        "sum(rate(http_requests_total{"
         'namespace="$namespace", '
         'service="$service"'
-        '}[5m]))'
+        "}[5m]))"
     ),
     # Pod restart count
     MetricType.POD_RESTARTS: Template(
-        'sum(increase(kube_pod_container_status_restarts_total{'
+        "sum(increase(kube_pod_container_status_restarts_total{"
         'namespace="$namespace", '
         'pod=~"$service.*"'
-        '}[1h])) by (pod)'
+        "}[1h])) by (pod)"
     ),
 }
 
@@ -190,23 +187,17 @@ def _validate_label_value(value: str, name: str) -> None:
         raise QueryValidationError(f"Parameter '{name}' cannot be empty")
 
     if len(value) > 128:
-        raise QueryValidationError(
-            f"Parameter '{name}' too long: {len(value)} chars (max 128)"
-        )
+        raise QueryValidationError(f"Parameter '{name}' too long: {len(value)} chars (max 128)")
 
     # Forbidden characters that could enable injection
     forbidden = set('"{}\n\\`$')
     found = set(value) & forbidden
     if found:
-        raise QueryValidationError(
-            f"Parameter '{name}' contains forbidden characters: {found}"
-        )
+        raise QueryValidationError(f"Parameter '{name}' contains forbidden characters: {found}")
 
     # Must start with alphanumeric
     if not value[0].isalnum():
-        raise QueryValidationError(
-            f"Parameter '{name}' must start with alphanumeric character"
-        )
+        raise QueryValidationError(f"Parameter '{name}' must start with alphanumeric character")
 
 
 def get_all_metric_queries(
@@ -228,9 +219,7 @@ def get_all_metric_queries(
     queries = {}
     for metric_type in MetricType:
         try:
-            queries[metric_type] = build_prometheus_query(
-                metric_type, service, namespace
-            )
+            queries[metric_type] = build_prometheus_query(metric_type, service, namespace)
         except (QueryValidationError, KeyError):
             continue
     return queries

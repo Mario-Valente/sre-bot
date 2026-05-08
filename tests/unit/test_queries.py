@@ -157,7 +157,7 @@ class TestLokiQueries:
         with pytest.raises(LogQueryValidationError) as exc_info:
             build_loki_query(
                 LogQueryType.ERROR_LOGS,
-                service='payment|api',
+                service="payment|api",
                 namespace="production",
             )
 

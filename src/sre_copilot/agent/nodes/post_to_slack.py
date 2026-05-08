@@ -136,37 +136,43 @@ def _format_analysis_blocks(alert, analysis: IncidentAnalysis) -> list[dict]:
     # Contributing factors
     if analysis.contributing_factors:
         factors_text = "\n".join(f"• {f}" for f in analysis.contributing_factors)
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*Contributing Factors:*\n{factors_text}",
-            },
-        })
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Contributing Factors:*\n{factors_text}",
+                },
+            }
+        )
 
     # Evidence
     if analysis.evidence:
         evidence_text = "\n".join(f"• {e}" for e in analysis.evidence[:5])
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*Evidence:*\n{evidence_text}",
-            },
-        })
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Evidence:*\n{evidence_text}",
+                },
+            }
+        )
 
     blocks.append({"type": "divider"})
 
     # Suggested Actions
     if analysis.suggested_actions:
-        actions_text = "\n".join(f"{i+1}. {a}" for i, a in enumerate(analysis.suggested_actions))
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*Suggested Actions:*\n{actions_text}",
-            },
-        })
+        actions_text = "\n".join(f"{i + 1}. {a}" for i, a in enumerate(analysis.suggested_actions))
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Suggested Actions:*\n{actions_text}",
+                },
+            }
+        )
 
     # Confidence and metadata
     confidence_emoji = {
@@ -175,32 +181,36 @@ def _format_analysis_blocks(alert, analysis: IncidentAnalysis) -> list[dict]:
         "low": ":red_circle:",
     }.get(analysis.confidence, ":white_circle:")
 
-    blocks.append({
-        "type": "context",
-        "elements": [
-            {
-                "type": "mrkdwn",
-                "text": f"{confidence_emoji} *Confidence:* {analysis.confidence.upper()}",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f":robot_face: _Automated analysis by SRE Copilot_",
-            },
-        ],
-    })
+    blocks.append(
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"{confidence_emoji} *Confidence:* {analysis.confidence.upper()}",
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": f":robot_face: _Automated analysis by SRE Copilot_",
+                },
+            ],
+        }
+    )
 
     # Escalation warning
     if analysis.needs_human_escalation:
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": (
-                    f":rotating_light: *Human Escalation Required*\n"
-                    f"Reason: {analysis.escalation_reason or 'See analysis for details'}"
-                ),
-            },
-        })
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f":rotating_light: *Human Escalation Required*\n"
+                        f"Reason: {analysis.escalation_reason or 'See analysis for details'}"
+                    ),
+                },
+            }
+        )
 
     return blocks
 

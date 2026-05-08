@@ -238,3 +238,9 @@ class GitQueryError(ObservabilityError):
     """Error querying Git provider."""
 
     pass
+
+
+class KubernetesQueryError(ObservabilityError):
+    """Error querying Kubernetes API."""
+
+    pass

@@ -97,16 +97,12 @@ class TempoClient(TracesClient):
                 data = response.json()
 
                 traces = self._parse_search_result(data.get("traces", []))
-                self._log.debug(
-                    "search completed", query=query, traces_count=len(traces)
-                )
+                self._log.debug("search completed", query=query, traces_count=len(traces))
                 return traces
 
         except httpx.HTTPStatusError as e:
             self._log.error("HTTP error", query=query, status=e.response.status_code)
-            raise TracesQueryError(
-                f"Tempo HTTP error: {e.response.status_code}"
-            ) from e
+            raise TracesQueryError(f"Tempo HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", query=query, error=str(e))
             raise TracesQueryError(f"Tempo request error: {e}") from e
@@ -149,12 +145,8 @@ class TempoClient(TracesClient):
             if e.response.status_code == 404:
                 self._log.warning("trace not found", trace_id=trace_id)
                 raise TracesQueryError(f"Trace not found: {trace_id}") from e
-            self._log.error(
-                "HTTP error", trace_id=trace_id, status=e.response.status_code
-            )
-            raise TracesQueryError(
-                f"Tempo HTTP error: {e.response.status_code}"
-            ) from e
+            self._log.error("HTTP error", trace_id=trace_id, status=e.response.status_code)
+            raise TracesQueryError(f"Tempo HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", trace_id=trace_id, error=str(e))
             raise TracesQueryError(f"Tempo request error: {e}") from e
@@ -206,9 +198,7 @@ class TempoClient(TracesClient):
                     "trace_id": trace.get("traceID", ""),
                     "root_service_name": trace.get("rootServiceName", ""),
                     "root_trace_name": trace.get("rootTraceName", ""),
-                    "start_time": self._parse_timestamp(
-                        trace.get("startTimeUnixNano", 0)
-                    ),
+                    "start_time": self._parse_timestamp(trace.get("startTimeUnixNano", 0)),
                     "duration_ms": trace.get("durationMs", 0),
                     "span_sets": trace.get("spanSets", []),
                 }
@@ -232,9 +222,7 @@ class TempoClient(TracesClient):
 
         for batch in batches:
             resource = batch.get("resource", {})
-            resource_attrs = self._extract_attributes(
-                resource.get("attributes", [])
-            )
+            resource_attrs = self._extract_attributes(resource.get("attributes", []))
             service_name = resource_attrs.get("service.name", "unknown")
 
             scope_spans = batch.get("scopeSpans", [])
@@ -247,20 +235,14 @@ class TempoClient(TracesClient):
                             "parent_span_id": span.get("parentSpanId", ""),
                             "name": span.get("name", ""),
                             "service_name": service_name,
-                            "start_time": self._parse_timestamp(
-                                span.get("startTimeUnixNano", 0)
-                            ),
-                            "end_time": self._parse_timestamp(
-                                span.get("endTimeUnixNano", 0)
-                            ),
+                            "start_time": self._parse_timestamp(span.get("startTimeUnixNano", 0)),
+                            "end_time": self._parse_timestamp(span.get("endTimeUnixNano", 0)),
                             "duration_ms": self._calculate_duration(
                                 span.get("startTimeUnixNano", 0),
                                 span.get("endTimeUnixNano", 0),
                             ),
                             "status": self._parse_status(span.get("status", {})),
-                            "attributes": self._extract_attributes(
-                                span.get("attributes", [])
-                            ),
+                            "attributes": self._extract_attributes(span.get("attributes", [])),
                         }
                     )
 

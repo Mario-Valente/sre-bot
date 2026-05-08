@@ -22,24 +22,18 @@ class AlertContext(BaseModel):
     alert_name: str = Field(
         description="Name of the alert (e.g., 'HighErrorRate', 'PodCrashLooping')"
     )
-    severity: Literal["critical", "warning", "info"] = Field(
-        description="Alert severity level"
-    )
+    severity: Literal["critical", "warning", "info"] = Field(description="Alert severity level")
     service_name: str = Field(description="Name of the affected service")
     cluster: str = Field(description="Kubernetes cluster name")
     namespace: str = Field(description="Kubernetes namespace")
     pod: str | None = Field(default=None, description="Specific pod name if available")
-    status_code: int | None = Field(
-        default=None, description="HTTP status code if relevant"
-    )
+    status_code: int | None = Field(default=None, description="HTTP status code if relevant")
     timestamp: datetime = Field(description="When the alert fired")
     raw_payload: dict = Field(
         default_factory=dict, description="Original alert payload for debugging"
     )
     description: str = Field(default="", description="Alert description/summary")
-    runbook_url: str | None = Field(
-        default=None, description="Link to runbook if available"
-    )
+    runbook_url: str | None = Field(default=None, description="Link to runbook if available")
 
 
 class MetricPoint(BaseModel):
@@ -53,9 +47,7 @@ class MetricSeries(BaseModel):
     """Time series data with labels."""
 
     labels: dict[str, str] = Field(default_factory=dict, description="Metric labels")
-    values: list[MetricPoint] = Field(
-        default_factory=list, description="Time series values"
-    )
+    values: list[MetricPoint] = Field(default_factory=list, description="Time series values")
 
 
 class MetricsData(BaseModel):
@@ -66,9 +58,7 @@ class MetricsData(BaseModel):
     for the affected service in the alert time window.
     """
 
-    cpu_usage: list[MetricSeries] = Field(
-        default_factory=list, description="CPU usage time series"
-    )
+    cpu_usage: list[MetricSeries] = Field(default_factory=list, description="CPU usage time series")
     memory_usage: list[MetricSeries] = Field(
         default_factory=list, description="Memory usage time series"
     )
@@ -107,12 +97,8 @@ class LogsData(BaseModel):
     during the alert time window.
     """
 
-    error_logs: list[LogEntry] = Field(
-        default_factory=list, description="Logs with level=error"
-    )
-    fatal_logs: list[LogEntry] = Field(
-        default_factory=list, description="Logs with level=fatal"
-    )
+    error_logs: list[LogEntry] = Field(default_factory=list, description="Logs with level=error")
+    fatal_logs: list[LogEntry] = Field(default_factory=list, description="Logs with level=fatal")
     log_patterns: list[str] = Field(
         default_factory=list,
         description="Frequently occurring error patterns",
@@ -203,9 +189,7 @@ class GitHubData(BaseModel):
     recent_prs: list[PullRequestInfo] = Field(
         default_factory=list, description="Recently merged PRs"
     )
-    last_release: ReleaseInfo | None = Field(
-        default=None, description="Most recent release"
-    )
+    last_release: ReleaseInfo | None = Field(default=None, description="Most recent release")
     has_recent_deploy: bool = Field(
         default=False,
         description="Whether a deploy occurred within the recent deploy window",
@@ -213,6 +197,150 @@ class GitHubData(BaseModel):
     repository: str = Field(default="", description="Repository name")
     query_errors: list[str] = Field(
         default_factory=list, description="Errors encountered during GitHub queries"
+    )
+
+
+class ContainerInfo(BaseModel):
+    """Information about a container in a pod."""
+
+    name: str = Field(description="Container name")
+    image: str = Field(description="Container image")
+    state: str = Field(description="Container state (running, waiting, terminated)")
+    state_detail: dict = Field(default_factory=dict, description="State details")
+    ready: bool = Field(default=False, description="Whether container is ready")
+    restart_count: int = Field(default=0, description="Number of restarts")
+    resources: dict = Field(default_factory=dict, description="Resource limits/requests")
+
+
+class PodCondition(BaseModel):
+    """Kubernetes pod condition."""
+
+    type: str = Field(description="Condition type (Ready, ContainersReady, etc.)")
+    status: str = Field(description="Condition status (True, False, Unknown)")
+    reason: str | None = Field(default=None, description="Reason for condition")
+    message: str | None = Field(default=None, description="Human-readable message")
+    last_transition: str | None = Field(default=None, description="Last transition time")
+
+
+class PodInfo(BaseModel):
+    """Detailed information about a Kubernetes pod."""
+
+    name: str = Field(description="Pod name")
+    namespace: str = Field(description="Pod namespace")
+    phase: str = Field(description="Pod phase (Running, Pending, Failed, etc.)")
+    node: str | None = Field(default=None, description="Node the pod is running on")
+    ip: str | None = Field(default=None, description="Pod IP address")
+    created_at: str | None = Field(default=None, description="Pod creation timestamp")
+    containers: list[ContainerInfo] = Field(
+        default_factory=list, description="Container information"
+    )
+    conditions: list[PodCondition] = Field(default_factory=list, description="Pod conditions")
+    restart_count: int = Field(default=0, description="Total restart count across containers")
+    labels: dict[str, str] = Field(default_factory=dict, description="Pod labels")
+
+
+class KubernetesEvent(BaseModel):
+    """Kubernetes event information."""
+
+    type: str = Field(description="Event type (Normal, Warning)")
+    reason: str = Field(description="Event reason (e.g., Killing, Created, Started)")
+    message: str = Field(description="Event message")
+    count: int = Field(default=1, description="Number of times event occurred")
+    first_timestamp: str | None = Field(default=None, description="First occurrence")
+    last_timestamp: str | None = Field(default=None, description="Last occurrence")
+    involved_object: dict = Field(default_factory=dict, description="Object involved")
+    source: str | None = Field(default=None, description="Event source component")
+
+
+class DeploymentInfo(BaseModel):
+    """Kubernetes deployment information."""
+
+    name: str = Field(description="Deployment name")
+    namespace: str = Field(description="Deployment namespace")
+    replicas: dict = Field(
+        default_factory=dict,
+        description="Replica counts (desired, ready, available, unavailable)",
+    )
+    strategy: str | None = Field(default=None, description="Deployment strategy")
+    conditions: list[dict] = Field(default_factory=list, description="Deployment conditions")
+    created_at: str | None = Field(default=None, description="Creation timestamp")
+    labels: dict[str, str] = Field(default_factory=dict, description="Labels")
+
+
+class KubeStateMetricsData(BaseModel):
+    """Data from Kube State Metrics via Prometheus."""
+
+    pod_phases: dict[str, str] = Field(
+        default_factory=dict,
+        description="Pod name to phase mapping",
+    )
+    container_waiting_reasons: list[dict] = Field(
+        default_factory=list,
+        description="Containers in waiting state with reasons",
+    )
+    container_terminated_reasons: list[dict] = Field(
+        default_factory=list,
+        description="Containers in terminated state with reasons",
+    )
+    container_restarts: dict[str, int] = Field(
+        default_factory=dict,
+        description="Container restart counts",
+    )
+    deployment_replicas: dict = Field(
+        default_factory=dict,
+        description="Deployment replica status",
+    )
+    resource_limits: list[dict] = Field(
+        default_factory=list,
+        description="Container resource limits",
+    )
+    resource_requests: list[dict] = Field(
+        default_factory=list,
+        description="Container resource requests",
+    )
+
+
+class KubernetesData(BaseModel):
+    """
+    Kubernetes cluster data for incident investigation.
+
+    Combines data from both the Kubernetes API and Kube State Metrics.
+    """
+
+    # Pod information from K8s API
+    pods: list[PodInfo] = Field(default_factory=list, description="Pods for the service")
+    pod_logs: dict[str, str] = Field(
+        default_factory=dict,
+        description="Pod name to log content mapping",
+    )
+
+    # Events from K8s API
+    events: list[KubernetesEvent] = Field(
+        default_factory=list,
+        description="Recent Kubernetes events",
+    )
+    warning_events: list[KubernetesEvent] = Field(
+        default_factory=list,
+        description="Warning events only (filtered)",
+    )
+
+    # Deployment info from K8s API
+    deployment: DeploymentInfo | None = Field(default=None, description="Deployment information")
+
+    # Metrics from Kube State Metrics via Prometheus
+    kube_state_metrics: KubeStateMetricsData | None = Field(
+        default=None, description="Data from kube-state-metrics"
+    )
+
+    # Detected issues
+    issues_detected: list[str] = Field(
+        default_factory=list,
+        description="Human-readable issues detected from K8s data",
+    )
+
+    # Query errors
+    query_errors: list[str] = Field(
+        default_factory=list, description="Errors encountered during Kubernetes queries"
     )
 
 
@@ -267,12 +395,13 @@ class AgentState(BaseModel):
     alert: AlertContext = Field(description="Extracted alert context")
 
     # === Collected Data (populated by nodes) ===
-    metrics: MetricsData | None = Field(
-        default=None, description="Prometheus metrics data"
-    )
+    metrics: MetricsData | None = Field(default=None, description="Prometheus metrics data")
     logs: LogsData | None = Field(default=None, description="Loki logs data")
     traces: TracesData | None = Field(default=None, description="Tempo traces data")
     github: GitHubData | None = Field(default=None, description="GitHub changes data")
+    kubernetes: KubernetesData | None = Field(
+        default=None, description="Kubernetes cluster data (pods, events, logs)"
+    )
 
     # === Output ===
     analysis: IncidentAnalysis | None = Field(
@@ -283,9 +412,7 @@ class AgentState(BaseModel):
     slack_thread_ts: str | None = Field(
         default=None, description="Slack thread timestamp for replies"
     )
-    slack_channel: str | None = Field(
-        default=None, description="Slack channel ID for posting"
-    )
+    slack_channel: str | None = Field(default=None, description="Slack channel ID for posting")
     slack_message_ts: str | None = Field(
         default=None, description="Timestamp of the bot's response message"
     )

@@ -43,7 +43,7 @@ def _build_analysis_prompt(state: AgentState) -> str:
 - **Namespace:** {alert.namespace}
 - **Cluster:** {alert.cluster}
 - **Timestamp:** {alert.timestamp.isoformat()}
-- **Description:** {alert.description or 'N/A'}
+- **Description:** {alert.description or "N/A"}
 """)
 
     # Metrics
@@ -87,12 +87,16 @@ def _build_analysis_prompt(state: AgentState) -> str:
         if logs.fatal_logs:
             logs_section += f"\n**Sample Fatal Logs ({len(logs.fatal_logs)}):**\n"
             for log_entry in logs.fatal_logs[:3]:
-                logs_section += f"- [{log_entry.timestamp.strftime('%H:%M:%S')}] {log_entry.message[:200]}\n"
+                logs_section += (
+                    f"- [{log_entry.timestamp.strftime('%H:%M:%S')}] {log_entry.message[:200]}\n"
+                )
 
         if logs.error_logs:
             logs_section += f"\n**Sample Error Logs ({len(logs.error_logs)}):**\n"
             for log_entry in logs.error_logs[:5]:
-                logs_section += f"- [{log_entry.timestamp.strftime('%H:%M:%S')}] {log_entry.message[:200]}\n"
+                logs_section += (
+                    f"- [{log_entry.timestamp.strftime('%H:%M:%S')}] {log_entry.message[:200]}\n"
+                )
 
         sections.append(logs_section)
     else:
@@ -112,16 +116,14 @@ def _build_analysis_prompt(state: AgentState) -> str:
             traces_section += f"\n**Failed Traces ({len(traces.failed_traces)}):**\n"
             for trace in traces.failed_traces[:3]:
                 traces_section += (
-                    f"- {trace.operation_name}: {trace.duration_ms:.0f}ms "
-                    f"({trace.service_name})\n"
+                    f"- {trace.operation_name}: {trace.duration_ms:.0f}ms ({trace.service_name})\n"
                 )
 
         if traces.slow_traces:
             traces_section += f"\n**Slow Traces ({len(traces.slow_traces)}):**\n"
             for trace in traces.slow_traces[:3]:
                 traces_section += (
-                    f"- {trace.operation_name}: {trace.duration_ms:.0f}ms "
-                    f"({trace.service_name})\n"
+                    f"- {trace.operation_name}: {trace.duration_ms:.0f}ms ({trace.service_name})\n"
                 )
 
         sections.append(traces_section)
@@ -132,7 +134,9 @@ def _build_analysis_prompt(state: AgentState) -> str:
     if state.github:
         github = state.github
         github_section = f"## Recent Changes (GitHub)\n**Repository:** {github.repository}\n"
-        github_section += f"**Recent Deploy Detected:** {'Yes' if github.has_recent_deploy else 'No'}\n"
+        github_section += (
+            f"**Recent Deploy Detected:** {'Yes' if github.has_recent_deploy else 'No'}\n"
+        )
 
         if github.recent_commits:
             github_section += f"\n**Recent Commits ({len(github.recent_commits)}):**\n"
@@ -183,7 +187,8 @@ async def synthesize(state: AgentState) -> StateUpdate:
 
         messages = [
             SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=f"""Analyze this incident and provide a root cause analysis.
+            HumanMessage(
+                content=f"""Analyze this incident and provide a root cause analysis.
 
 {analysis_prompt}
 
@@ -196,7 +201,8 @@ Respond with a JSON object containing:
 - confidence: "high", "medium", or "low"
 - needs_human_escalation: true/false
 - escalation_reason: Reason if escalation needed (optional)
-"""),
+"""
+            ),
         ]
 
         # Invoke LLM
@@ -249,7 +255,7 @@ def _parse_llm_response(response_text: str, log) -> IncidentAnalysis:
     import re
 
     # Try to extract JSON from response
-    json_match = re.search(r'\{[\s\S]*\}', response_text)
+    json_match = re.search(r"\{[\s\S]*\}", response_text)
     if json_match:
         try:
             data = json.loads(json_match.group())

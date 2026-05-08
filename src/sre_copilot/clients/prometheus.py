@@ -75,18 +75,12 @@ class PrometheusClient(MetricsClient):
                     raise MetricsQueryError(f"Prometheus query failed: {error_msg}")
 
                 result = self._parse_result(data["data"]["result"])
-                self._log.debug(
-                    "query completed", query=query, series_count=len(result)
-                )
+                self._log.debug("query completed", query=query, series_count=len(result))
                 return result
 
         except httpx.HTTPStatusError as e:
-            self._log.error(
-                "HTTP error", query=query, status=e.response.status_code
-            )
-            raise MetricsQueryError(
-                f"Prometheus HTTP error: {e.response.status_code}"
-            ) from e
+            self._log.error("HTTP error", query=query, status=e.response.status_code)
+            raise MetricsQueryError(f"Prometheus HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", query=query, error=str(e))
             raise MetricsQueryError(f"Prometheus request error: {e}") from e
@@ -144,18 +138,12 @@ class PrometheusClient(MetricsClient):
                     raise MetricsQueryError(f"Prometheus query failed: {error_msg}")
 
                 result = self._parse_result(data["data"]["result"])
-                self._log.debug(
-                    "range query completed", query=query, series_count=len(result)
-                )
+                self._log.debug("range query completed", query=query, series_count=len(result))
                 return result
 
         except httpx.HTTPStatusError as e:
-            self._log.error(
-                "HTTP error", query=query, status=e.response.status_code
-            )
-            raise MetricsQueryError(
-                f"Prometheus HTTP error: {e.response.status_code}"
-            ) from e
+            self._log.error("HTTP error", query=query, status=e.response.status_code)
+            raise MetricsQueryError(f"Prometheus HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", query=query, error=str(e))
             raise MetricsQueryError(f"Prometheus request error: {e}") from e

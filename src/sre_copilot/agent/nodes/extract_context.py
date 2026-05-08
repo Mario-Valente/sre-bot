@@ -145,12 +145,7 @@ def parse_alertmanager_payload(payload: dict) -> AlertContext:
         return annotations.get(name) or common_annotations.get(name) or default
 
     def _label(name: str, default: str = "") -> str:
-        return (
-            labels.get(name)
-            or common_labels.get(name)
-            or group_labels.get(name)
-            or default
-        )
+        return labels.get(name) or common_labels.get(name) or group_labels.get(name) or default
 
     # Parse timestamp
     starts_at = alert_data.get("startsAt", "")
@@ -163,8 +158,10 @@ def parse_alertmanager_payload(payload: dict) -> AlertContext:
 
     # Map severity
     severity_raw = _label("severity", "warning").lower()
-    severity = "critical" if severity_raw == "critical" else (
-        "warning" if severity_raw == "warning" else "info"
+    severity = (
+        "critical"
+        if severity_raw == "critical"
+        else ("warning" if severity_raw == "warning" else "info")
     )
 
     return AlertContext(

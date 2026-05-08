@@ -95,16 +95,12 @@ class LokiClient(LogsClient):
                     raise LogsQueryError(f"Loki query failed: {error_msg}")
 
                 result = self._parse_result(data["data"]["result"])
-                self._log.debug(
-                    "query completed", query=query, entries_count=len(result)
-                )
+                self._log.debug("query completed", query=query, entries_count=len(result))
                 return result
 
         except httpx.HTTPStatusError as e:
             self._log.error("HTTP error", query=query, status=e.response.status_code)
-            raise LogsQueryError(
-                f"Loki HTTP error: {e.response.status_code}"
-            ) from e
+            raise LogsQueryError(f"Loki HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", query=query, error=str(e))
             raise LogsQueryError(f"Loki request error: {e}") from e

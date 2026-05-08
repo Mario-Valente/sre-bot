@@ -22,9 +22,7 @@ class TraceQueryType(str, Enum):
 
 TEMPO_TEMPLATES: dict[TraceQueryType, Template] = {
     # Traces with error status
-    TraceQueryType.ERROR_TRACES: Template(
-        '{resource.service.name="$service" && status=error}'
-    ),
+    TraceQueryType.ERROR_TRACES: Template('{resource.service.name="$service" && status=error}'),
     # Traces slower than threshold (default 1s)
     TraceQueryType.SLOW_TRACES: Template(
         '{resource.service.name="$service" && duration>$threshold}'
@@ -127,17 +125,13 @@ def _validate_service_name(value: str) -> None:
         raise TraceQueryValidationError("Service name cannot be empty")
 
     if len(value) > 128:
-        raise TraceQueryValidationError(
-            f"Service name too long: {len(value)} chars (max 128)"
-        )
+        raise TraceQueryValidationError(f"Service name too long: {len(value)} chars (max 128)")
 
     # Forbidden characters
     forbidden = set('"{}\n\\`$|&')
     found = set(value) & forbidden
     if found:
-        raise TraceQueryValidationError(
-            f"Service name contains forbidden characters: {found}"
-        )
+        raise TraceQueryValidationError(f"Service name contains forbidden characters: {found}")
 
 
 def _validate_duration(value: str) -> None:
@@ -230,9 +224,7 @@ def get_incident_trace_queries(
                 if query_type in (TraceQueryType.SLOW_TRACES, TraceQueryType.HIGH_LATENCY)
                 else None
             )
-            queries[query_type] = build_tempo_query(
-                query_type, service, threshold=threshold
-            )
+            queries[query_type] = build_tempo_query(query_type, service, threshold=threshold)
         except (TraceQueryValidationError, KeyError):
             continue
 

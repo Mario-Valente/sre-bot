@@ -1,0 +1,489 @@
+"""Node for fetching Kubernetes data (API + Kube State Metrics)."""
+
+import asyncio
+from typing import Any
+
+import structlog
+
+from sre_copilot.agent.state import (
+    AgentState,
+    ContainerInfo,
+    DeploymentInfo,
+    KubernetesData,
+    KubernetesEvent,
+    KubeStateMetricsData,
+    PodCondition,
+    PodInfo,
+    StateUpdate,
+)
+from sre_copilot.clients.kubernetes import KubernetesClient
+from sre_copilot.clients.prometheus import PrometheusClient
+from sre_copilot.clients.protocols import KubernetesQueryError, MetricsQueryError
+from sre_copilot.config import get_settings
+from sre_copilot.queries.kube_state_metrics import (
+    get_deployment_health_queries,
+    get_pod_health_queries,
+)
+
+logger = structlog.get_logger()
+
+
+async def fetch_kubernetes(state: AgentState) -> StateUpdate:
+    """
+    Fetch Kubernetes data for the affected service.
+
+    Collects data from two sources:
+    1. Kubernetes API - pod details, logs, events, deployment info
+    2. Kube State Metrics via Prometheus - pod status, restarts, resource usage
+
+    Args:
+        state: Current agent state with alert context.
+
+    Returns:
+        Updated state with Kubernetes data.
+    """
+    settings = get_settings()
+    log = logger.bind(
+        node="fetch_kubernetes",
+        service=state.alert.service_name,
+        namespace=state.alert.namespace,
+    )
+
+    if not settings.kubernetes_enabled:
+        log.info("kubernetes integration disabled")
+        return {"kubernetes": None}
+
+    log.info("fetching Kubernetes data")
+
+    alert = state.alert
+    query_errors: list[str] = []
+    issues_detected: list[str] = []
+
+    # Initialize data containers
+    pods: list[PodInfo] = []
+    pod_logs: dict[str, str] = {}
+    events: list[KubernetesEvent] = []
+    deployment: DeploymentInfo | None = None
+    kube_state_metrics: KubeStateMetricsData | None = None
+
+    # === Fetch from Kubernetes API ===
+    try:
+        k8s_client = KubernetesClient()
+
+        # Fetch pods, events, deployment in parallel
+        pods_task = _fetch_pods(k8s_client, alert.service_name, alert.namespace, log)
+        events_task = _fetch_events(k8s_client, alert.service_name, alert.namespace, log)
+        deployment_task = _fetch_deployment(k8s_client, alert.service_name, alert.namespace, log)
+
+        pods_result, events_result, deployment_result = await asyncio.gather(
+            pods_task,
+            events_task,
+            deployment_task,
+            return_exceptions=True,
+        )
+
+        # Process pods
+        if isinstance(pods_result, Exception):
+            query_errors.append(f"Pods: {str(pods_result)}")
+        else:
+            pods = pods_result
+
+        # Process events
+        if isinstance(events_result, Exception):
+            query_errors.append(f"Events: {str(events_result)}")
+        else:
+            events = events_result
+
+        # Process deployment
+        if isinstance(deployment_result, Exception):
+            query_errors.append(f"Deployment: {str(deployment_result)}")
+        else:
+            deployment = deployment_result
+
+        # Fetch logs for each pod (limit to first 3 pods to avoid overload)
+        if pods:
+            log_tasks = []
+            for pod in pods[:3]:
+                log_tasks.append(
+                    _fetch_pod_logs(
+                        k8s_client, pod.name, alert.namespace, settings.kubernetes_log_lines, log
+                    )
+                )
+
+            log_results = await asyncio.gather(*log_tasks, return_exceptions=True)
+
+            for pod, result in zip(pods[:3], log_results):
+                if isinstance(result, Exception):
+                    query_errors.append(f"Logs for {pod.name}: {str(result)}")
+                elif result:
+                    pod_logs[pod.name] = result
+
+    except Exception as e:
+        log.error("failed to initialize Kubernetes client", error=str(e))
+        query_errors.append(f"Kubernetes client: {str(e)}")
+
+    # === Fetch from Kube State Metrics via Prometheus ===
+    try:
+        kube_state_metrics = await _fetch_kube_state_metrics(
+            alert.service_name, alert.namespace, log
+        )
+    except Exception as e:
+        log.error("failed to fetch kube state metrics", error=str(e))
+        query_errors.append(f"Kube State Metrics: {str(e)}")
+
+    # === Detect Issues ===
+    issues_detected = _detect_kubernetes_issues(pods, events, deployment, kube_state_metrics)
+
+    # Filter warning events
+    warning_events = [e for e in events if e.type == "Warning"]
+
+    kubernetes_data = KubernetesData(
+        pods=pods,
+        pod_logs=pod_logs,
+        events=events,
+        warning_events=warning_events,
+        deployment=deployment,
+        kube_state_metrics=kube_state_metrics,
+        issues_detected=issues_detected,
+        query_errors=query_errors,
+    )
+
+    log.info(
+        "kubernetes data fetched",
+        pods=len(pods),
+        events=len(events),
+        warning_events=len(warning_events),
+        has_deployment=deployment is not None,
+        issues=len(issues_detected),
+        errors=len(query_errors),
+    )
+
+    return {"kubernetes": kubernetes_data}
+
+
+async def _fetch_pods(
+    client: KubernetesClient,
+    service_name: str,
+    namespace: str,
+    log,
+) -> list[PodInfo]:
+    """Fetch pods for the service."""
+    try:
+        raw_pods = await client.get_pods_for_service(service_name, namespace)
+        pods = []
+        for raw_pod in raw_pods:
+            containers = [
+                ContainerInfo(
+                    name=c["name"],
+                    image=c["image"],
+                    state=c["state"],
+                    state_detail=c.get("state_detail", {}),
+                    ready=c.get("ready", False),
+                    restart_count=c.get("restart_count", 0),
+                    resources=c.get("resources", {}),
+                )
+                for c in raw_pod.get("containers", [])
+            ]
+            conditions = [
+                PodCondition(
+                    type=c["type"],
+                    status=c["status"],
+                    reason=c.get("reason"),
+                    message=c.get("message"),
+                    last_transition=c.get("last_transition"),
+                )
+                for c in raw_pod.get("conditions", [])
+            ]
+            pods.append(
+                PodInfo(
+                    name=raw_pod["name"],
+                    namespace=raw_pod["namespace"],
+                    phase=raw_pod["phase"],
+                    node=raw_pod.get("node"),
+                    ip=raw_pod.get("ip"),
+                    created_at=raw_pod.get("created_at"),
+                    containers=containers,
+                    conditions=conditions,
+                    restart_count=raw_pod.get("restart_count", 0),
+                    labels=raw_pod.get("labels", {}),
+                )
+            )
+        return pods
+    except KubernetesQueryError:
+        raise
+    except Exception as e:
+        log.warning("failed to fetch pods", error=str(e))
+        raise KubernetesQueryError(f"Failed to fetch pods: {e}") from e
+
+
+async def _fetch_events(
+    client: KubernetesClient,
+    service_name: str,
+    namespace: str,
+    log,
+) -> list[KubernetesEvent]:
+    """Fetch Kubernetes events for the namespace."""
+    try:
+        raw_events = await client.get_events(namespace, limit=50)
+        # Filter events related to our service
+        events = []
+        for raw_event in raw_events:
+            involved = raw_event.get("involved_object", {})
+            obj_name = involved.get("name", "")
+            # Include if object name starts with service name
+            if obj_name.startswith(service_name):
+                events.append(
+                    KubernetesEvent(
+                        type=raw_event["type"],
+                        reason=raw_event["reason"],
+                        message=raw_event["message"],
+                        count=raw_event.get("count", 1),
+                        first_timestamp=raw_event.get("first_timestamp"),
+                        last_timestamp=raw_event.get("last_timestamp"),
+                        involved_object=involved,
+                        source=raw_event.get("source"),
+                    )
+                )
+        return events
+    except KubernetesQueryError:
+        raise
+    except Exception as e:
+        log.warning("failed to fetch events", error=str(e))
+        raise KubernetesQueryError(f"Failed to fetch events: {e}") from e
+
+
+async def _fetch_deployment(
+    client: KubernetesClient,
+    service_name: str,
+    namespace: str,
+    log,
+) -> DeploymentInfo | None:
+    """Fetch deployment information."""
+    try:
+        raw_deployment = await client.get_deployment(service_name, namespace)
+        if not raw_deployment:
+            return None
+        return DeploymentInfo(
+            name=raw_deployment["name"],
+            namespace=raw_deployment["namespace"],
+            replicas=raw_deployment.get("replicas", {}),
+            strategy=raw_deployment.get("strategy"),
+            conditions=raw_deployment.get("conditions", []),
+            created_at=raw_deployment.get("created_at"),
+            labels=raw_deployment.get("labels", {}),
+        )
+    except KubernetesQueryError:
+        raise
+    except Exception as e:
+        log.warning("failed to fetch deployment", error=str(e))
+        raise KubernetesQueryError(f"Failed to fetch deployment: {e}") from e
+
+
+async def _fetch_pod_logs(
+    client: KubernetesClient,
+    pod_name: str,
+    namespace: str,
+    tail_lines: int,
+    log,
+) -> str:
+    """Fetch logs for a single pod."""
+    try:
+        logs = await client.get_pod_logs(pod_name, namespace, tail_lines=tail_lines)
+        return logs
+    except KubernetesQueryError:
+        raise
+    except Exception as e:
+        log.warning("failed to fetch logs", pod=pod_name, error=str(e))
+        raise KubernetesQueryError(f"Failed to fetch logs: {e}") from e
+
+
+async def _fetch_kube_state_metrics(
+    service_name: str,
+    namespace: str,
+    log,
+) -> KubeStateMetricsData:
+    """Fetch Kube State Metrics via Prometheus."""
+    client = PrometheusClient()
+
+    # Build queries
+    pod_queries = get_pod_health_queries(service_name, namespace)
+    deployment_queries = get_deployment_health_queries(service_name, namespace)
+
+    all_queries = {**pod_queries, **deployment_queries}
+
+    # Execute queries in parallel
+    results = {}
+    tasks = []
+    query_names = []
+
+    for name, query in all_queries.items():
+        query_names.append(name)
+        tasks.append(_safe_prometheus_query(client, query, log))
+
+    query_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for name, result in zip(query_names, query_results):
+        if isinstance(result, Exception):
+            log.warning("kube state query failed", query=name, error=str(result))
+            results[name] = []
+        else:
+            results[name] = result
+
+    # Parse results into KubeStateMetricsData
+    return _parse_kube_state_results(results)
+
+
+async def _safe_prometheus_query(
+    client: PrometheusClient,
+    query: str,
+    log,
+) -> list[dict[str, Any]]:
+    """Execute Prometheus query with error handling."""
+    try:
+        return await client.query(query)
+    except MetricsQueryError:
+        raise
+    except Exception as e:
+        raise MetricsQueryError(f"Query failed: {e}") from e
+
+
+def _parse_kube_state_results(results: dict[str, list]) -> KubeStateMetricsData:
+    """Parse raw Prometheus results into KubeStateMetricsData."""
+    data = KubeStateMetricsData()
+
+    # Pod phases
+    for item in results.get("pod_phase", []):
+        labels = item.get("labels", {})
+        pod_name = labels.get("pod", "")
+        phase = labels.get("phase", "")
+        if pod_name and phase:
+            data.pod_phases[pod_name] = phase
+
+    # Container waiting reasons
+    for item in results.get("container_waiting", []):
+        labels = item.get("labels", {})
+        data.container_waiting_reasons.append(
+            {
+                "pod": labels.get("pod", ""),
+                "container": labels.get("container", ""),
+                "reason": labels.get("reason", ""),
+            }
+        )
+
+    # Container terminated reasons
+    for item in results.get("container_terminated", []):
+        labels = item.get("labels", {})
+        data.container_terminated_reasons.append(
+            {
+                "pod": labels.get("pod", ""),
+                "container": labels.get("container", ""),
+                "reason": labels.get("reason", ""),
+            }
+        )
+
+    # Container restarts
+    for item in results.get("container_restarts", []):
+        labels = item.get("labels", {})
+        pod_name = labels.get("pod", "")
+        values = item.get("values", [])
+        if pod_name and values:
+            # Get latest value
+            latest_value = values[-1].get("value", 0) if values else 0
+            data.container_restarts[pod_name] = int(latest_value)
+
+    # Deployment replicas
+    desired = 0
+    available = 0
+    unavailable = 0
+
+    for item in results.get("replicas_desired", []):
+        values = item.get("values", [])
+        if values:
+            desired = int(values[-1].get("value", 0))
+
+    for item in results.get("replicas_available", []):
+        values = item.get("values", [])
+        if values:
+            available = int(values[-1].get("value", 0))
+
+    for item in results.get("replicas_unavailable", []):
+        values = item.get("values", [])
+        if values:
+            unavailable = int(values[-1].get("value", 0))
+
+    data.deployment_replicas = {
+        "desired": desired,
+        "available": available,
+        "unavailable": unavailable,
+    }
+
+    return data
+
+
+def _detect_kubernetes_issues(
+    pods: list[PodInfo],
+    events: list[KubernetesEvent],
+    deployment: DeploymentInfo | None,
+    kube_state_metrics: KubeStateMetricsData | None,
+) -> list[str]:
+    """Detect issues from Kubernetes data."""
+    issues = []
+
+    # Check pod phases
+    for pod in pods:
+        if pod.phase == "Failed":
+            issues.append(f"Pod {pod.name} is in Failed state")
+        elif pod.phase == "Pending":
+            issues.append(f"Pod {pod.name} is stuck in Pending state")
+
+        # Check container states
+        for container in pod.containers:
+            if container.state == "waiting":
+                reason = container.state_detail.get("reason", "unknown")
+                if reason in ("CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull"):
+                    issues.append(f"Container {container.name} in pod {pod.name}: {reason}")
+
+            if container.restart_count > 3:
+                issues.append(
+                    f"Container {container.name} in pod {pod.name} has "
+                    f"{container.restart_count} restarts"
+                )
+
+    # Check warning events
+    crash_events = [e for e in events if e.reason in ("BackOff", "Killing", "Unhealthy")]
+    for event in crash_events[:3]:  # Limit to top 3
+        issues.append(f"Event: {event.reason} - {event.message[:100]}")
+
+    # Check deployment
+    if deployment:
+        replicas = deployment.replicas
+        if replicas.get("unavailable", 0) > 0:
+            issues.append(f"Deployment has {replicas['unavailable']} unavailable replicas")
+        if replicas.get("ready", 0) < replicas.get("desired", 0):
+            issues.append(
+                f"Deployment has only {replicas.get('ready', 0)}/{replicas.get('desired', 0)} "
+                "ready replicas"
+            )
+
+    # Check kube state metrics
+    if kube_state_metrics:
+        # CrashLoopBackOff from waiting reasons
+        for waiting in kube_state_metrics.container_waiting_reasons:
+            reason = waiting.get("reason", "")
+            if reason == "CrashLoopBackOff":
+                pod = waiting.get("pod", "unknown")
+                issues.append(f"CrashLoopBackOff detected in pod {pod}")
+
+        # OOMKilled from terminated reasons
+        for terminated in kube_state_metrics.container_terminated_reasons:
+            reason = terminated.get("reason", "")
+            if reason == "OOMKilled":
+                pod = terminated.get("pod", "unknown")
+                issues.append(f"OOMKilled detected in pod {pod}")
+
+        # High restart counts
+        for pod_name, restarts in kube_state_metrics.container_restarts.items():
+            if restarts > 5:
+                issues.append(f"High restart count ({restarts}) for pod {pod_name}")
+
+    return issues

@@ -90,7 +90,7 @@ async def fetch_logs(state: AgentState) -> StateUpdate:
 
     # Deduplicate and sort
     error_logs = _deduplicate_logs(error_logs)[:100]  # Limit to 100
-    fatal_logs = _deduplicate_logs(fatal_logs)[:50]   # Limit to 50
+    fatal_logs = _deduplicate_logs(fatal_logs)[:50]  # Limit to 50
 
     # Detect patterns
     log_patterns = _extract_patterns(all_entries)
@@ -179,17 +179,17 @@ def _normalize_message(message: str) -> str:
 
     # Replace UUIDs
     normalized = re.sub(
-        r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
-        '<UUID>',
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "<UUID>",
         message,
         flags=re.IGNORECASE,
     )
     # Replace long hex strings
-    normalized = re.sub(r'[0-9a-f]{16,}', '<HEX>', normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"[0-9a-f]{16,}", "<HEX>", normalized, flags=re.IGNORECASE)
     # Replace numbers
-    normalized = re.sub(r'\d+', '<N>', normalized)
+    normalized = re.sub(r"\d+", "<N>", normalized)
     # Replace IP addresses
-    normalized = re.sub(r'\d+\.\d+\.\d+\.\d+', '<IP>', normalized)
+    normalized = re.sub(r"\d+\.\d+\.\d+\.\d+", "<IP>", normalized)
     # Truncate
     return normalized[:100]
 
@@ -230,10 +230,10 @@ def _extract_key_phrases(message: str) -> list[str]:
 
     # Common error patterns
     patterns = [
-        r'(?i)(error|exception|failed|failure|timeout|refused|denied|invalid|missing|null|undefined)[\s:]+\w+',
-        r'(?i)(cannot|could not|unable to)\s+\w+',
-        r'(?i)(status[=:]\s*\d+)',
-        r'(?i)(code[=:]\s*\w+)',
+        r"(?i)(error|exception|failed|failure|timeout|refused|denied|invalid|missing|null|undefined)[\s:]+\w+",
+        r"(?i)(cannot|could not|unable to)\s+\w+",
+        r"(?i)(status[=:]\s*\d+)",
+        r"(?i)(code[=:]\s*\w+)",
     ]
 
     for pattern in patterns:

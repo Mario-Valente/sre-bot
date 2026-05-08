@@ -144,8 +144,7 @@ def _parse_series(raw_data: list[dict]) -> list[MetricSeries]:
     series_list = []
     for item in raw_data:
         values = [
-            MetricPoint(timestamp=v["timestamp"], value=v["value"])
-            for v in item.get("values", [])
+            MetricPoint(timestamp=v["timestamp"], value=v["value"]) for v in item.get("values", [])
         ]
         series_list.append(
             MetricSeries(
@@ -170,9 +169,7 @@ def _detect_anomalies(metrics: MetricsData) -> list[str]:
             if series.values:
                 max_error_rate = max(v.value for v in series.values)
                 if max_error_rate > 0.05:  # > 5% error rate
-                    anomalies.append(
-                        f"High error rate detected: {max_error_rate:.1%}"
-                    )
+                    anomalies.append(f"High error rate detected: {max_error_rate:.1%}")
                     break
 
     # Check latency spike
@@ -181,9 +178,7 @@ def _detect_anomalies(metrics: MetricsData) -> list[str]:
             if series.values:
                 max_latency = max(v.value for v in series.values)
                 if max_latency > 1.0:  # > 1 second
-                    anomalies.append(
-                        f"High P99 latency detected: {max_latency:.2f}s"
-                    )
+                    anomalies.append(f"High P99 latency detected: {max_latency:.2f}s")
                     break
 
     # Check CPU spike
@@ -192,9 +187,7 @@ def _detect_anomalies(metrics: MetricsData) -> list[str]:
             if series.values:
                 max_cpu = max(v.value for v in series.values)
                 if max_cpu > 0.9:  # > 90% CPU
-                    anomalies.append(
-                        f"High CPU usage detected: {max_cpu:.1%}"
-                    )
+                    anomalies.append(f"High CPU usage detected: {max_cpu:.1%}")
                     break
 
     # Check memory spike
@@ -206,9 +199,7 @@ def _detect_anomalies(metrics: MetricsData) -> list[str]:
                     # Check for rapid memory growth
                     growth = (values[-1] - values[0]) / max(values[0], 1)
                     if growth > 0.5:  # > 50% growth
-                        anomalies.append(
-                            f"Rapid memory growth detected: {growth:.1%}"
-                        )
+                        anomalies.append(f"Rapid memory growth detected: {growth:.1%}")
                         break
 
     return anomalies

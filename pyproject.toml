@@ -39,6 +39,9 @@ dependencies = [
     # GitHub
     "pygithub>=2.3.0",
 
+    # Kubernetes
+    "kubernetes>=29.0.0",
+
     # Utilities
     "structlog>=24.4.0",
     "python-dotenv>=1.0.0",
@@ -106,6 +109,7 @@ module = [
     "langchain_openai.*",
     "langchain_anthropic.*",
     "langgraph.*",
+    "kubernetes.*",
 ]
 ignore_missing_imports = true
 

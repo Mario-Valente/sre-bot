@@ -120,6 +120,28 @@ class Settings(BaseSettings):
         description="Default GitHub organization for repository lookups",
     )
 
+    # === Kubernetes Configuration ===
+    kubernetes_enabled: bool = Field(
+        default=True,
+        description="Enable Kubernetes API integration",
+    )
+    kubernetes_in_cluster: bool = Field(
+        default=False,
+        description="Use in-cluster config (True when running inside K8s)",
+    )
+    kubernetes_config_path: str | None = Field(
+        default=None,
+        description="Path to kubeconfig file (None = default location)",
+    )
+    kubernetes_context: str | None = Field(
+        default=None,
+        description="Kubernetes context to use (None = current context)",
+    )
+    kubernetes_log_lines: int = Field(
+        default=100,
+        description="Number of log lines to fetch from pods",
+    )
+
     # === Database Configuration ===
     database_url: str = Field(
         default="sqlite+aiosqlite:///./sre_bot.db",

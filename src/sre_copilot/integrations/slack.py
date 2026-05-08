@@ -29,9 +29,7 @@ def create_slack_app() -> AsyncApp:
     settings = get_settings()
 
     if not settings.slack_bot_token or not settings.slack_signing_secret:
-        raise ValueError(
-            "SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET must be configured"
-        )
+        raise ValueError("SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET must be configured")
 
     app = AsyncApp(
         token=settings.slack_bot_token.get_secret_value(),
@@ -138,9 +136,7 @@ def _register_handlers(app: AsyncApp) -> None:
             match = re.search(r"analyze\s+(\S+)", text)
             if match:
                 service_name = match.group(1)
-                await _trigger_manual_investigation(
-                    service_name, event, say, client, log
-                )
+                await _trigger_manual_investigation(service_name, event, say, client, log)
                 return
 
         # Default response
@@ -272,8 +268,8 @@ def _parse_slack_alert(text: str, event: dict) -> AlertContext | None:
 
     # Map severity
     severity_raw = extracted.get("severity", "warning").lower()
-    severity = "critical" if "crit" in severity_raw else (
-        "warning" if "warn" in severity_raw else "info"
+    severity = (
+        "critical" if "crit" in severity_raw else ("warning" if "warn" in severity_raw else "info")
     )
 
     return AlertContext(

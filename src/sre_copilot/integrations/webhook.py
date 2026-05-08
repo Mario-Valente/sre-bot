@@ -164,11 +164,13 @@ def _register_routes(app: FastAPI) -> None:
             observed = [
                 {
                     "severity": str(
-                        ({
-                            **webhook.groupLabels,
-                            **webhook.commonLabels,
-                            **a.get("labels", {}),
-                        }).get("severity", "")
+                        (
+                            {
+                                **webhook.groupLabels,
+                                **webhook.commonLabels,
+                                **a.get("labels", {}),
+                            }
+                        ).get("severity", "")
                     ).lower(),
                     "status": str(a.get("status") or webhook.status).lower(),
                 }
@@ -385,8 +387,10 @@ async def _process_custom_alert(
 
         # Build alert context from custom payload
         severity_raw = payload.get("severity", "warning").lower()
-        severity = "critical" if "crit" in severity_raw else (
-            "warning" if "warn" in severity_raw else "info"
+        severity = (
+            "critical"
+            if "crit" in severity_raw
+            else ("warning" if "warn" in severity_raw else "info")
         )
 
         alert_context = AlertContext(

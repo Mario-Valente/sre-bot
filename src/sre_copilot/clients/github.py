@@ -38,9 +38,7 @@ class GitHubClient(GitClient):
         """
         settings = get_settings()
         self.token = token or (
-            settings.github_token.get_secret_value()
-            if settings.github_token
-            else None
+            settings.github_token.get_secret_value() if settings.github_token else None
         )
         self.timeout = timeout or settings.query_timeout_seconds
         self.default_org = settings.github_org
@@ -76,9 +74,7 @@ class GitHubClient(GitClient):
             GitQueryError: If the query fails.
         """
         full_repo = self._resolve_repo(repo)
-        self._log.debug(
-            "fetching commits", repo=full_repo, since=since.isoformat(), limit=limit
-        )
+        self._log.debug("fetching commits", repo=full_repo, since=since.isoformat(), limit=limit)
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -94,18 +90,12 @@ class GitHubClient(GitClient):
                 data = response.json()
 
                 commits = self._parse_commits(data)
-                self._log.debug(
-                    "commits fetched", repo=full_repo, count=len(commits)
-                )
+                self._log.debug("commits fetched", repo=full_repo, count=len(commits))
                 return commits
 
         except httpx.HTTPStatusError as e:
-            self._log.error(
-                "HTTP error", repo=full_repo, status=e.response.status_code
-            )
-            raise GitQueryError(
-                f"GitHub HTTP error: {e.response.status_code}"
-            ) from e
+            self._log.error("HTTP error", repo=full_repo, status=e.response.status_code)
+            raise GitQueryError(f"GitHub HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", repo=full_repo, error=str(e))
             raise GitQueryError(f"GitHub request error: {e}") from e
@@ -166,12 +156,8 @@ class GitHubClient(GitClient):
                 return prs
 
         except httpx.HTTPStatusError as e:
-            self._log.error(
-                "HTTP error", repo=full_repo, status=e.response.status_code
-            )
-            raise GitQueryError(
-                f"GitHub HTTP error: {e.response.status_code}"
-            ) from e
+            self._log.error("HTTP error", repo=full_repo, status=e.response.status_code)
+            raise GitQueryError(f"GitHub HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", repo=full_repo, error=str(e))
             raise GitQueryError(f"GitHub request error: {e}") from e
@@ -213,12 +199,8 @@ class GitHubClient(GitClient):
                 return release
 
         except httpx.HTTPStatusError as e:
-            self._log.error(
-                "HTTP error", repo=full_repo, status=e.response.status_code
-            )
-            raise GitQueryError(
-                f"GitHub HTTP error: {e.response.status_code}"
-            ) from e
+            self._log.error("HTTP error", repo=full_repo, status=e.response.status_code)
+            raise GitQueryError(f"GitHub HTTP error: {e.response.status_code}") from e
         except httpx.RequestError as e:
             self._log.error("request error", repo=full_repo, error=str(e))
             raise GitQueryError(f"GitHub request error: {e}") from e

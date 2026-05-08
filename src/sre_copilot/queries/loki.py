@@ -149,17 +149,13 @@ def _validate_label_value(value: str, name: str) -> None:
         raise LogQueryValidationError(f"Parameter '{name}' cannot be empty")
 
     if len(value) > 128:
-        raise LogQueryValidationError(
-            f"Parameter '{name}' too long: {len(value)} chars (max 128)"
-        )
+        raise LogQueryValidationError(f"Parameter '{name}' too long: {len(value)} chars (max 128)")
 
     # Forbidden characters that could enable injection
     forbidden = set('"{}\n\\`$|')
     found = set(value) & forbidden
     if found:
-        raise LogQueryValidationError(
-            f"Parameter '{name}' contains forbidden characters: {found}"
-        )
+        raise LogQueryValidationError(f"Parameter '{name}' contains forbidden characters: {found}")
 
 
 def get_incident_log_queries(
@@ -196,9 +192,7 @@ def get_incident_log_queries(
     queries = {}
     for query_type in incident_types:
         try:
-            queries[query_type] = build_loki_query(
-                query_type, service, namespace, use_alt_labels
-            )
+            queries[query_type] = build_loki_query(query_type, service, namespace, use_alt_labels)
         except (LogQueryValidationError, KeyError):
             continue
 

@@ -158,9 +158,7 @@ class IncidentRepository:
 
     async def get_by_id(self, incident_id: int) -> Incident | None:
         """Get incident by ID."""
-        result = await self.session.execute(
-            select(Incident).where(Incident.id == incident_id)
-        )
+        result = await self.session.execute(select(Incident).where(Incident.id == incident_id))
         return result.scalar_one_or_none()
 
     async def get_recent(

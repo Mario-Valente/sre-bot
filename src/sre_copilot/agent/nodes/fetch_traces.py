@@ -133,10 +133,15 @@ async def _safe_search(
         log.debug("executing trace search", query_name=name, query=query)
 
         # Determine status filter
-        status = "error" if query_type in (
-            TraceQueryType.ERROR_TRACES,
-            TraceQueryType.FAILED_HTTP,
-        ) else None
+        status = (
+            "error"
+            if query_type
+            in (
+                TraceQueryType.ERROR_TRACES,
+                TraceQueryType.FAILED_HTTP,
+            )
+            else None
+        )
 
         # Determine min_duration
         min_duration = threshold if query_type == TraceQueryType.SLOW_TRACES else None
@@ -211,8 +216,7 @@ def _identify_bottlenecks(spans: list[SpanInfo]) -> list[str]:
     # Return services that appear in more than 20% of traces
     threshold = max(len(spans) * 0.2, 2)
     bottlenecks = [
-        service for service, count in service_counter.most_common(5)
-        if count >= threshold
+        service for service, count in service_counter.most_common(5) if count >= threshold
     ]
 
     return bottlenecks

@@ -76,7 +76,9 @@ async def fetch_github(state: AgentState) -> StateUpdate:
     release_task = _safe_get_release(client, repo, log)
 
     commits, prs, release = await asyncio.gather(
-        commits_task, prs_task, release_task,
+        commits_task,
+        prs_task,
+        release_task,
         return_exceptions=True,
     )
 

@@ -5,7 +5,7 @@ from datetime import datetime
 # Sample Alertmanager webhook payload
 ALERTMANAGER_WEBHOOK_FIRING = {
     "version": "4",
-    "groupKey": "{}:{alertname=\"HighErrorRate\"}",
+    "groupKey": '{}:{alertname="HighErrorRate"}',
     "truncatedAlerts": 0,
     "status": "firing",
     "receiver": "sre-copilot",
@@ -51,7 +51,7 @@ ALERTMANAGER_WEBHOOK_FIRING = {
 
 ALERTMANAGER_WEBHOOK_RESOLVED = {
     "version": "4",
-    "groupKey": "{}:{alertname=\"HighErrorRate\"}",
+    "groupKey": '{}:{alertname="HighErrorRate"}',
     "truncatedAlerts": 0,
     "status": "resolved",
     "receiver": "sre-copilot",
