@@ -181,6 +181,15 @@ async def _fetch_pods(
                     ready=c.get("ready", False),
                     restart_count=c.get("restart_count", 0),
                     resources=c.get("resources", {}),
+                    command=c.get("command", []),
+                    args=c.get("args", []),
+                    env_vars=c.get("env_vars", {}),
+                    image_pull_policy=c.get("image_pull_policy", ""),
+                    liveness_probe=c.get("liveness_probe", {}),
+                    readiness_probe=c.get("readiness_probe", {}),
+                    startup_probe=c.get("startup_probe", {}),
+                    security_context=c.get("security_context", {}),
+                    volume_mounts=c.get("volume_mounts", []),
                 )
                 for c in raw_pod.get("containers", [])
             ]
@@ -271,6 +280,13 @@ async def _fetch_deployment(
             conditions=raw_deployment.get("conditions", []),
             created_at=raw_deployment.get("created_at"),
             labels=raw_deployment.get("labels", {}),
+            annotations=raw_deployment.get("annotations", {}),
+            pod_template_labels=raw_deployment.get("pod_template_labels", {}),
+            pod_template_annotations=raw_deployment.get("pod_template_annotations", {}),
+            selector=raw_deployment.get("selector", {}),
+            min_ready_seconds=raw_deployment.get("min_ready_seconds", 0),
+            revision_history_limit=raw_deployment.get("revision_history_limit"),
+            volumes=raw_deployment.get("volumes", []),
         )
     except KubernetesQueryError:
         raise
@@ -436,7 +452,7 @@ def _detect_kubernetes_issues(
         elif pod.phase == "Pending":
             issues.append(f"Pod {pod.name} is stuck in Pending state")
 
-        # Check container states
+        # Check container states and probes
         for container in pod.containers:
             if container.state == "waiting":
                 reason = container.state_detail.get("reason", "unknown")
@@ -447,6 +463,24 @@ def _detect_kubernetes_issues(
                 issues.append(
                     f"Container {container.name} in pod {pod.name} has "
                     f"{container.restart_count} restarts"
+                )
+
+            # Check for problematic probe configurations (e.g., exec probes that always fail)
+            for probe_name in ["readiness_probe", "liveness_probe", "startup_probe"]:
+                probe = getattr(container, probe_name, {})
+                if probe and probe.get("type") == "exec":
+                    cmd = probe.get("exec", {}).get("command", [])
+                    if cmd and (cmd == ["false"] or "false" in " ".join(cmd)):
+                        issues.append(
+                            f"Container {container.name} in {pod.name} has {probe_name} "
+                            f"with failing command: {' '.join(cmd)} - probe will always fail!"
+                        )
+
+            # Check for missing environment variables or suspicious configurations
+            if not container.env_vars and container.command and "java" in str(container.command).lower():
+                issues.append(
+                    f"Java application {container.name} in {pod.name} has no environment "
+                    f"variables configured"
                 )
 
     # Check warning events

@@ -210,6 +210,15 @@ class ContainerInfo(BaseModel):
     ready: bool = Field(default=False, description="Whether container is ready")
     restart_count: int = Field(default=0, description="Number of restarts")
     resources: dict = Field(default_factory=dict, description="Resource limits/requests")
+    command: list[str] = Field(default_factory=list, description="Container entrypoint command")
+    args: list[str] = Field(default_factory=list, description="Container arguments")
+    env_vars: dict[str, str] = Field(default_factory=dict, description="Environment variables")
+    image_pull_policy: str = Field(default="", description="Image pull policy")
+    liveness_probe: dict = Field(default_factory=dict, description="Liveness probe configuration")
+    readiness_probe: dict = Field(default_factory=dict, description="Readiness probe configuration")
+    startup_probe: dict = Field(default_factory=dict, description="Startup probe configuration")
+    security_context: dict = Field(default_factory=dict, description="Security context")
+    volume_mounts: list[dict] = Field(default_factory=list, description="Volume mounts")
 
 
 class PodCondition(BaseModel):
@@ -265,6 +274,13 @@ class DeploymentInfo(BaseModel):
     conditions: list[dict] = Field(default_factory=list, description="Deployment conditions")
     created_at: str | None = Field(default=None, description="Creation timestamp")
     labels: dict[str, str] = Field(default_factory=dict, description="Labels")
+    annotations: dict[str, str] = Field(default_factory=dict, description="Deployment annotations")
+    pod_template_labels: dict[str, str] = Field(default_factory=dict, description="Pod template labels")
+    pod_template_annotations: dict[str, str] = Field(default_factory=dict, description="Pod template annotations")
+    selector: dict[str, str] = Field(default_factory=dict, description="Label selector")
+    min_ready_seconds: int = Field(default=0, description="Min ready seconds")
+    revision_history_limit: int | None = Field(default=None, description="Revision history limit")
+    volumes: list[dict] = Field(default_factory=list, description="Pod template volumes")
 
 
 class KubeStateMetricsData(BaseModel):

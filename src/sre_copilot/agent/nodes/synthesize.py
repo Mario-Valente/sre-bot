@@ -27,6 +27,36 @@ Guidelines:
 - Set confidence based on evidence strength (high/medium/low)
 - Flag for escalation if: data loss risk, security concern, or widespread impact
 
+### Kubernetes-Specific Analysis Instructions:
+When analyzing Kubernetes data, pay close attention to:
+
+1. **Readiness/Liveness Probes:**
+   - Are probes failing? (readiness_probe or liveness_probe with type exec/http/tcp)
+   - Are failure thresholds set too aggressively?
+   - Are initial delays sufficient for startup?
+   - Check for probe commands returning false, http 404/500, or connection timeouts
+   - If a probe command starts with "false" or always fails, this will cause CrashLoopBackOff
+
+2. **Container Configuration:**
+   - Are the command and args correct for the application?
+   - Are critical environment variables missing or misconfigured?
+   - Do resource limits make sense for the workload?
+   - Is the security context appropriate? (privileged, runAsNonRoot, uid/gid)
+
+3. **Pod State Indicators:**
+   - CrashLoopBackOff = Container repeatedly failing to start
+   - Pending = Pod can't be scheduled (usually resource or node issues)
+   - ImagePullBackOff = Image pull failure
+   - Look for pod conditions that are not True status
+
+4. **Common Misconfigurations:**
+   - Incorrect probe configuration (especially failing/always-false exec probes)
+   - Missing or wrong environment variables
+   - Incorrect container command or arguments
+   - Resource requests too high for available nodes
+   - Image pull policy issues
+   - Security context preventing container startup
+
 Output format: JSON matching the IncidentAnalysis schema."""
 
 
@@ -130,6 +160,163 @@ def _build_analysis_prompt(state: AgentState) -> str:
     else:
         sections.append("## Traces\nNo trace data available.\n")
 
+    # Kubernetes
+    if state.kubernetes:
+        k8s = state.kubernetes
+        k8s_section = "## Kubernetes Analysis\n"
+
+        # Issues detected upfront
+        if k8s.issues_detected:
+            k8s_section += "**🚨 Issues Detected:**\n"
+            for issue in k8s.issues_detected:
+                k8s_section += f"- {issue}\n"
+
+        # Pod details
+        if k8s.pods:
+            k8s_section += f"\n**Pods ({len(k8s.pods)}):**\n"
+            for pod in k8s.pods[:5]:
+                k8s_section += f"\n  **Pod: {pod.name}**\n"
+                k8s_section += f"    - Phase: {pod.phase}\n"
+                k8s_section += f"    - Node: {pod.node or 'N/A'}\n"
+                k8s_section += f"    - Restart Count: {pod.restart_count}\n"
+
+                # Pod conditions
+                for cond in pod.conditions:
+                    if cond.status != "True":
+                        k8s_section += f"    - Condition {cond.type}: {cond.status} ({cond.reason})\n"
+
+                # Container details with new fields
+                for container in pod.containers:
+                    k8s_section += f"\n    **Container: {container.name}**\n"
+                    k8s_section += f"      - Image: {container.image}\n"
+                    k8s_section += f"      - State: {container.state}\n"
+                    if container.state_detail:
+                        for key, value in container.state_detail.items():
+                            k8s_section += f"        - {key}: {value}\n"
+
+                    # Command and args (key for misconfiguration detection)
+                    if container.command:
+                        k8s_section += f"      - Command: {' '.join(container.command)}\n"
+                    if container.args:
+                        k8s_section += f"      - Args: {' '.join(container.args)}\n"
+
+                    # Environment variables
+                    if container.env_vars:
+                        k8s_section += f"      - Environment Variables: {len(container.env_vars)} set\n"
+                        for key, value in list(container.env_vars.items())[:3]:
+                            k8s_section += f"        - {key}={value if len(str(value)) < 50 else str(value)[:47] + '...'}\n"
+                        if len(container.env_vars) > 3:
+                            k8s_section += f"        - ... and {len(container.env_vars) - 3} more\n"
+
+                    # Resource limits/requests
+                    if container.resources:
+                        limits = container.resources.get("limits", {})
+                        requests = container.resources.get("requests", {})
+                        if limits:
+                            k8s_section += f"      - Resource Limits: CPU={limits.get('cpu')}, Memory={limits.get('memory')}\n"
+                        if requests:
+                            k8s_section += f"      - Resource Requests: CPU={requests.get('cpu')}, Memory={requests.get('memory')}\n"
+
+                    # Security context
+                    if container.security_context:
+                        k8s_section += f"      - Security Context: "
+                        sc_items = []
+                        if container.security_context.get("privileged"):
+                            sc_items.append("PRIVILEGED")
+                        if container.security_context.get("run_as_non_root") is False:
+                            sc_items.append("RUNNING_AS_ROOT")
+                        if container.security_context.get("read_only_root_filesystem"):
+                            sc_items.append("READ_ONLY_FS")
+                        if container.security_context.get("run_as_user"):
+                            sc_items.append(f"UID={container.security_context['run_as_user']}")
+                        k8s_section += ", ".join(sc_items) if sc_items else "default\n"
+                        k8s_section += "\n"
+
+                    # Probes (important for CrashLoopBackOff issues)
+                    if container.readiness_probe:
+                        probe = container.readiness_probe
+                        k8s_section += f"      - Readiness Probe: type={probe.get('type')}, "
+                        k8s_section += f"failureThreshold={probe.get('failure_threshold')}, "
+                        k8s_section += f"periodSeconds={probe.get('period_seconds')}\n"
+                        if probe.get("type") == "exec" and probe.get("exec", {}).get("command"):
+                            k8s_section += f"        - Command: {' '.join(probe['exec']['command'])}\n"
+
+                    if container.liveness_probe:
+                        probe = container.liveness_probe
+                        k8s_section += f"      - Liveness Probe: type={probe.get('type')}, "
+                        k8s_section += f"initialDelaySeconds={probe.get('initial_delay_seconds')}\n"
+
+                    if container.startup_probe:
+                        probe = container.startup_probe
+                        k8s_section += f"      - Startup Probe: type={probe.get('type')}\n"
+
+                    # Volume mounts
+                    if container.volume_mounts:
+                        k8s_section += f"      - Volume Mounts: {len(container.volume_mounts)}\n"
+                        for vm in container.volume_mounts[:3]:
+                            k8s_section += f"        - {vm.get('name')}: {vm.get('mount_path')} {'(read-only)' if vm.get('read_only') else ''}\n"
+
+        # Deployment info
+        if k8s.deployment:
+            dep = k8s.deployment
+            k8s_section += f"\n**Deployment: {dep.name}**\n"
+            k8s_section += f"  - Desired Replicas: {dep.replicas.get('desired', 0)}\n"
+            k8s_section += f"  - Ready Replicas: {dep.replicas.get('ready', 0)}\n"
+            k8s_section += f"  - Available Replicas: {dep.replicas.get('available', 0)}\n"
+            k8s_section += f"  - Unavailable Replicas: {dep.replicas.get('unavailable', 0)}\n"
+            k8s_section += f"  - Strategy: {dep.strategy}\n"
+            k8s_section += f"  - Min Ready Seconds: {dep.min_ready_seconds}\n"
+
+            if dep.volumes:
+                k8s_section += f"  - Volumes Configured: {len(dep.volumes)}\n"
+                for vol in dep.volumes[:3]:
+                    vol_type = vol.get('type', 'unknown')
+                    k8s_section += f"    - {vol.get('name')}: type={vol_type}\n"
+
+            if dep.annotations:
+                k8s_section += f"  - Key Annotations: "
+                k8s_section += ", ".join([f"{k}={v[:30]}" for k, v in list(dep.annotations.items())[:2]]) + "\n"
+
+        # Events
+        if k8s.warning_events:
+            k8s_section += f"\n**Warning Events ({len(k8s.warning_events)}):**\n"
+            for event in k8s.warning_events[:5]:
+                k8s_section += f"  - [{event.reason}] {event.message[:100]}\n"
+
+        # Pod logs
+        if k8s.pod_logs:
+            k8s_section += f"\n**Pod Logs Available: {len(k8s.pod_logs)} pod(s)**\n"
+            for pod_name, logs in list(k8s.pod_logs.items())[:2]:
+                log_lines = logs.split("\n")[:5]
+                k8s_section += f"  **{pod_name}:**\n"
+                for line in log_lines:
+                    if line.strip():
+                        k8s_section += f"    {line[:100]}\n"
+
+        # Kube State Metrics
+        if k8s.kube_state_metrics:
+            ksm = k8s.kube_state_metrics
+            if ksm.container_waiting_reasons:
+                k8s_section += f"\n**Containers Waiting:**\n"
+                for waiting in ksm.container_waiting_reasons[:3]:
+                    k8s_section += f"  - {waiting.get('pod')}/{waiting.get('container')}: {waiting.get('reason')}\n"
+
+            if ksm.container_terminated_reasons:
+                k8s_section += f"\n**Containers Terminated:**\n"
+                for term in ksm.container_terminated_reasons[:3]:
+                    k8s_section += f"  - {term.get('pod')}/{term.get('container')}: {term.get('reason')}\n"
+
+            if ksm.container_restarts:
+                high_restarts = {k: v for k, v in ksm.container_restarts.items() if v > 3}
+                if high_restarts:
+                    k8s_section += f"\n**High Container Restarts:**\n"
+                    for pod, count in high_restarts.items():
+                        k8s_section += f"  - {pod}: {count} restarts\n"
+
+        sections.append(k8s_section)
+    else:
+        sections.append("## Kubernetes\nNo Kubernetes data available.\n")
+
     # GitHub
     if state.github:
         github = state.github
@@ -192,11 +379,19 @@ async def synthesize(state: AgentState) -> StateUpdate:
 
 {analysis_prompt}
 
+IMPORTANT ANALYSIS FOCUS:
+- If Kubernetes data shows CrashLoopBackOff or Pending pods, analyze the container configuration deeply
+- Check readiness/liveness probes for any that are obviously failing (e.g., exec probes with command "false")
+- Look for misconfigurations in command, args, environment variables
+- If probes are configured, analyze their failure thresholds and initial delays
+- Consider if pod logs indicate the actual error
+- Cross-reference Kubernetes pod conditions with container state details
+
 Respond with a JSON object containing:
 - summary: Brief 1-2 sentence summary
-- probable_root_cause: Primary hypothesis
+- probable_root_cause: Primary hypothesis (be specific about the root cause)
 - contributing_factors: List of secondary factors
-- evidence: List of data points supporting the hypothesis
+- evidence: List of data points supporting the hypothesis  
 - suggested_actions: List of immediate next steps
 - confidence: "high", "medium", or "low"
 - needs_human_escalation: true/false

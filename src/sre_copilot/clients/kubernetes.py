@@ -355,6 +355,24 @@ class KubernetesClient:
                     return None
                 raise
 
+            # Parse pod template volumes
+            volumes = []
+            if deployment.spec.template.spec.volumes:
+                for vol in deployment.spec.template.spec.volumes:
+                    vol_info = {"name": vol.name}
+                    if vol.config_map:
+                        vol_info["type"] = "configMap"
+                        vol_info["config_map"] = vol.config_map.name
+                    elif vol.secret:
+                        vol_info["type"] = "secret"
+                        vol_info["secret"] = vol.secret.secret_name
+                    elif vol.empty_dir:
+                        vol_info["type"] = "emptyDir"
+                    elif vol.persistent_volume_claim:
+                        vol_info["type"] = "persistentVolumeClaim"
+                        vol_info["pvc"] = vol.persistent_volume_claim.claim_name
+                    volumes.append(vol_info)
+
             return {
                 "name": deployment.metadata.name,
                 "namespace": deployment.metadata.namespace,
@@ -379,6 +397,13 @@ class KubernetesClient:
                 ],
                 "created_at": deployment.metadata.creation_timestamp.isoformat(),
                 "labels": dict(deployment.metadata.labels or {}),
+                "annotations": dict(deployment.metadata.annotations or {}),
+                "pod_template_labels": dict(deployment.spec.template.metadata.labels or {}),
+                "pod_template_annotations": dict(deployment.spec.template.metadata.annotations or {}),
+                "selector": dict(deployment.spec.selector.match_labels or {}),
+                "min_ready_seconds": deployment.spec.min_ready_seconds or 0,
+                "revision_history_limit": deployment.spec.revision_history_limit,
+                "volumes": volumes,
             }
 
         try:
@@ -438,6 +463,22 @@ class KubernetesClient:
                         if container.resources and container.resources.requests
                         else {},
                     },
+                    "command": container.command or [],
+                    "args": container.args or [],
+                    "image_pull_policy": container.image_pull_policy or "",
+                    "env_vars": {
+                        env.name: env.value
+                        for env in (container.env or [])
+                        if env.value  # Only include env vars with direct values (not valueFrom)
+                    },
+                    "liveness_probe": self._parse_probe(container.liveness_probe),
+                    "readiness_probe": self._parse_probe(container.readiness_probe),
+                    "startup_probe": self._parse_probe(container.startup_probe),
+                    "security_context": self._parse_security_context(container.security_context),
+                    "volume_mounts": [
+                        {"name": vm.name, "mount_path": vm.mount_path, "read_only": vm.read_only}
+                        for vm in (container.volume_mounts or [])
+                    ],
                 }
             )
 
@@ -471,3 +512,63 @@ class KubernetesClient:
             "conditions": conditions,
             "restart_count": sum(c.get("restart_count", 0) for c in containers),
         }
+
+    def _parse_probe(self, probe) -> dict[str, Any]:
+        """Parse a probe configuration (Readiness, Liveness, Startup)."""
+        if not probe:
+            return {}
+
+        result = {
+            "initial_delay_seconds": probe.initial_delay_seconds or 0,
+            "timeout_seconds": probe.timeout_seconds or 1,
+            "period_seconds": probe.period_seconds or 10,
+            "success_threshold": probe.success_threshold or 1,
+            "failure_threshold": probe.failure_threshold or 3,
+        }
+
+        if probe.http_get:
+            result["type"] = "http_get"
+            result["http_get"] = {
+                "path": probe.http_get.path,
+                "port": probe.http_get.port,
+                "scheme": probe.http_get.scheme or "HTTP",
+            }
+        elif probe.tcp_socket:
+            result["type"] = "tcp_socket"
+            result["tcp_socket"] = {"port": probe.tcp_socket.port}
+        elif probe.exec:
+            result["type"] = "exec"
+            result["exec"] = {"command": probe.exec.command or []}
+
+        return result
+
+    def _parse_security_context(self, sc) -> dict[str, Any]:
+        """Parse a security context."""
+        if not sc:
+            return {}
+
+        result = {}
+        if sc.privileged is not None:
+            result["privileged"] = sc.privileged
+        if sc.read_only_root_filesystem is not None:
+            result["read_only_root_filesystem"] = sc.read_only_root_filesystem
+        if sc.run_as_non_root is not None:
+            result["run_as_non_root"] = sc.run_as_non_root
+        if sc.run_as_user is not None:
+            result["run_as_user"] = sc.run_as_user
+        if sc.run_as_group is not None:
+            result["run_as_group"] = sc.run_as_group
+        if sc.capabilities:
+            result["capabilities"] = {
+                "add": sc.capabilities.add or [],
+                "drop": sc.capabilities.drop or [],
+            }
+        if sc.selinux_options:
+            result["selinux"] = {
+                "level": sc.selinux_options.level,
+                "role": sc.selinux_options.role,
+                "type": sc.selinux_options.type,
+                "user": sc.selinux_options.user,
+            }
+
+        return result
