@@ -8,7 +8,7 @@ from typing import NoReturn
 
 import structlog
 
-from sre_copilot.config import get_settings
+from sre_bot.config import get_settings
 
 settings = get_settings()
 log_level_name = settings.log_level.upper()
@@ -56,7 +56,7 @@ async def run_services() -> None:
 
     # Start webhook server if enabled
     if settings.enable_webhook:
-        from sre_copilot.integrations.webhook import start_webhook_server
+        from sre_bot.integrations.webhook import start_webhook_server
 
         log.info(
             "starting webhook server",
@@ -68,7 +68,7 @@ async def run_services() -> None:
     # Start Slack listener if enabled
     if settings.enable_slack_listener:
         if settings.slack_bot_token and settings.slack_app_token:
-            from sre_copilot.integrations.slack import start_slack_listener
+            from sre_bot.integrations.slack import start_slack_listener
 
             log.info("starting Slack listener")
             tasks.append(asyncio.create_task(start_slack_listener()))
@@ -131,7 +131,7 @@ def print_config_summary() -> None:
     settings = get_settings()
     log = logger.bind(component="config")
 
-    from sre_copilot.llm.factory import get_llm_info
+    from sre_bot.llm.factory import get_llm_info
 
     llm_info = get_llm_info()
 

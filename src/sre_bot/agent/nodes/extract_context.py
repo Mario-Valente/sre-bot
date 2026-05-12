@@ -4,7 +4,7 @@ from datetime import datetime
 
 import structlog
 
-from sre_copilot.agent.state import AgentState, AlertContext, StateUpdate
+from sre_bot.agent.state import AgentState, AlertContext, StateUpdate
 
 logger = structlog.get_logger()
 

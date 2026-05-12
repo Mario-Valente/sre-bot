@@ -6,11 +6,11 @@ from datetime import datetime, timedelta
 
 import structlog
 
-from sre_copilot.agent.state import AgentState, LogEntry, LogsData, StateUpdate
-from sre_copilot.clients.loki import LokiClient
-from sre_copilot.clients.protocols import LogsQueryError
-from sre_copilot.config import get_settings
-from sre_copilot.queries.loki import LogQueryType, build_loki_query
+from sre_bot.agent.state import AgentState, LogEntry, LogsData, StateUpdate
+from sre_bot.clients.loki import LokiClient
+from sre_bot.clients.protocols import LogsQueryError
+from sre_bot.config import get_settings
+from sre_bot.queries.loki import LogQueryType, build_loki_query
 
 logger = structlog.get_logger()
 

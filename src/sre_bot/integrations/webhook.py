@@ -10,10 +10,10 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from sre_copilot.agent.graph import run_investigation
-from sre_copilot.agent.nodes.extract_context import parse_alertmanager_payload
-from sre_copilot.agent.state import AgentState
-from sre_copilot.config import get_settings
+from sre_bot.agent.graph import run_investigation
+from sre_bot.agent.nodes.extract_context import parse_alertmanager_payload
+from sre_bot.agent.state import AgentState
+from sre_bot.config import get_settings
 
 logger = structlog.get_logger()
 
@@ -382,7 +382,7 @@ async def _process_custom_alert(
     )
 
     try:
-        from sre_copilot.agent.state import AlertContext
+        from sre_bot.agent.state import AlertContext
 
         # Build alert context from custom payload
         severity_raw = payload.get("severity", "warning").lower()

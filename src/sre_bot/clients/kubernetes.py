@@ -11,8 +11,8 @@ import structlog
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 
-from sre_copilot.clients.protocols import KubernetesQueryError
-from sre_copilot.config import get_settings
+from sre_bot.clients.protocols import KubernetesQueryError
+from sre_bot.config import get_settings
 
 logger = structlog.get_logger()
 

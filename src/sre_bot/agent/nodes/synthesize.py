@@ -5,8 +5,8 @@ from datetime import datetime
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from sre_copilot.agent.state import AgentState, IncidentAnalysis, StateUpdate
-from sre_copilot.llm import get_llm
+from sre_bot.agent.state import AgentState, IncidentAnalysis, StateUpdate
+from sre_bot.llm import get_llm
 
 logger = structlog.get_logger()
 

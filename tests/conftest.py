@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sre_copilot.agent.state import AgentState, AlertContext
+from sre_bot.agent.state import AgentState, AlertContext
 
 
 @pytest.fixture(autouse=True)

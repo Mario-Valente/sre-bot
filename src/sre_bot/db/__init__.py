@@ -1,7 +1,7 @@
 """Database models and repositories."""
 
-from sre_copilot.db.models import Base, Incident, IncidentFeedback
-from sre_copilot.db.repository import (
+from sre_bot.db.models import Base, Incident, IncidentFeedback
+from sre_bot.db.repository import (
     IncidentRepository,
     close_db,
     get_session,

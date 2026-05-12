@@ -7,9 +7,9 @@ import structlog
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from slack_bolt.async_app import AsyncApp
 
-from sre_copilot.agent.graph import run_investigation
-from sre_copilot.agent.state import AgentState, AlertContext
-from sre_copilot.config import get_settings
+from sre_bot.agent.graph import run_investigation
+from sre_bot.agent.state import AgentState, AlertContext
+from sre_bot.config import get_settings
 
 logger = structlog.get_logger()
 

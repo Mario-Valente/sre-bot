@@ -4,11 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from sre_copilot.agent.nodes.extract_context import (
+from sre_bot.agent.nodes.extract_context import (
     extract_context,
     parse_alertmanager_payload,
 )
-from sre_copilot.agent.state import AgentState, AlertContext
+from sre_bot.agent.state import AgentState, AlertContext
 
 
 class TestExtractContext:

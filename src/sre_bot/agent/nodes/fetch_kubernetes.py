@@ -5,7 +5,7 @@ from typing import Any
 
 import structlog
 
-from sre_copilot.agent.state import (
+from sre_bot.agent.state import (
     AgentState,
     ContainerInfo,
     DeploymentInfo,
@@ -16,11 +16,11 @@ from sre_copilot.agent.state import (
     PodInfo,
     StateUpdate,
 )
-from sre_copilot.clients.kubernetes import KubernetesClient
-from sre_copilot.clients.prometheus import PrometheusClient
-from sre_copilot.clients.protocols import KubernetesQueryError, MetricsQueryError
-from sre_copilot.config import get_settings
-from sre_copilot.queries.kube_state_metrics import (
+from sre_bot.clients.kubernetes import KubernetesClient
+from sre_bot.clients.prometheus import PrometheusClient
+from sre_bot.clients.protocols import KubernetesQueryError, MetricsQueryError
+from sre_bot.config import get_settings
+from sre_bot.queries.kube_state_metrics import (
     get_deployment_health_queries,
     get_pod_health_queries,
 )
@@ -117,6 +117,28 @@ async def fetch_kubernetes(state: AgentState) -> StateUpdate:
                     query_errors.append(f"Logs for {pod.name}: {str(result)}")
                 elif result:
                     pod_logs[pod.name] = result
+
+        # Fetch events specifically for problematic pods (Pending, Failed, CrashLoopBackOff, etc.)
+        # This captures critical events like FailedScheduling, FailedMount, FailedAttachVolume
+        if pods:
+            try:
+                problematic_pod_events = await _fetch_events_for_problematic_pods(
+                    k8s_client, pods, alert.namespace, log
+                )
+                # Merge with existing events, avoiding duplicates
+                existing_event_keys = {
+                    f"{e.reason}:{e.message}:{e.involved_object.get('name', '')}" for e in events
+                }
+                for event in problematic_pod_events:
+                    event_key = (
+                        f"{event.reason}:{event.message}:{event.involved_object.get('name', '')}"
+                    )
+                    if event_key not in existing_event_keys:
+                        events.append(event)
+                        existing_event_keys.add(event_key)
+            except Exception as e:
+                log.warning("failed to fetch events for problematic pods", error=str(e))
+                query_errors.append(f"Problematic pod events: {str(e)}")
 
     except Exception as e:
         log.error("failed to initialize Kubernetes client", error=str(e))
@@ -259,6 +281,135 @@ async def _fetch_events(
     except Exception as e:
         log.warning("failed to fetch events", error=str(e))
         raise KubernetesQueryError(f"Failed to fetch events: {e}") from e
+
+
+def _is_pod_problematic(pod: PodInfo) -> bool:
+    """Check if a pod is in a problematic state that warrants event investigation."""
+    # Check pod phase
+    if pod.phase in ("Pending", "Failed", "Unknown"):
+        return True
+
+    # Check container states
+    for container in pod.containers:
+        if container.state == "waiting":
+            reason = container.state_detail.get("reason", "")
+            if reason in (
+                "CrashLoopBackOff",
+                "ImagePullBackOff",
+                "ErrImagePull",
+                "CreateContainerConfigError",
+                "InvalidImageName",
+                "ContainerCreating",
+            ):
+                return True
+
+        if container.state == "terminated":
+            reason = container.state_detail.get("reason", "")
+            if reason in ("OOMKilled", "Error", "ContainerCannotRun"):
+                return True
+
+        # High restart count indicates instability
+        if container.restart_count > 3:
+            return True
+
+    # Check pod conditions for issues
+    for condition in pod.conditions:
+        if condition.type == "Ready" and condition.status == "False":
+            return True
+        if condition.type == "PodScheduled" and condition.status == "False":
+            return True
+        if condition.type == "ContainersReady" and condition.status == "False":
+            return True
+
+    return False
+
+
+async def _fetch_events_for_resource(
+    client: KubernetesClient,
+    resource_name: str,
+    namespace: str,
+    log,
+) -> list[KubernetesEvent]:
+    """Fetch Kubernetes events for a specific resource by name."""
+    try:
+        raw_events = await client.get_events(
+            namespace,
+            involved_object_name=resource_name,
+            limit=20,
+        )
+        events = []
+        for raw_event in raw_events:
+            involved = raw_event.get("involved_object", {})
+            events.append(
+                KubernetesEvent(
+                    type=raw_event["type"],
+                    reason=raw_event["reason"],
+                    message=raw_event["message"],
+                    count=raw_event.get("count", 1),
+                    first_timestamp=raw_event.get("first_timestamp"),
+                    last_timestamp=raw_event.get("last_timestamp"),
+                    involved_object=involved,
+                    source=raw_event.get("source"),
+                )
+            )
+        return events
+    except KubernetesQueryError:
+        raise
+    except Exception as e:
+        log.warning("failed to fetch events for resource", resource=resource_name, error=str(e))
+        raise KubernetesQueryError(f"Failed to fetch events for {resource_name}: {e}") from e
+
+
+async def _fetch_events_for_problematic_pods(
+    client: KubernetesClient,
+    pods: list[PodInfo],
+    namespace: str,
+    log,
+) -> list[KubernetesEvent]:
+    """
+    Fetch events specifically for pods that are in problematic states.
+
+    This is crucial for diagnosing issues like:
+    - Pending pods: FailedScheduling, FailedAttachVolume, FailedMount
+    - Failed pods: Killing, BackOff, Unhealthy
+    - CrashLoopBackOff: Previous container logs and restart reasons
+    """
+    problematic_pods = [pod for pod in pods if _is_pod_problematic(pod)]
+
+    if not problematic_pods:
+        log.debug("no problematic pods found, skipping targeted event fetch")
+        return []
+
+    log.info(
+        "fetching events for problematic pods",
+        count=len(problematic_pods),
+        pods=[p.name for p in problematic_pods],
+    )
+
+    # Fetch events for each problematic pod in parallel
+    tasks = []
+    for pod in problematic_pods[:5]:  # Limit to 5 pods to avoid overload
+        tasks.append(_fetch_events_for_resource(client, pod.name, namespace, log))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    all_events: list[KubernetesEvent] = []
+    seen_events: set[str] = set()  # Deduplicate by message + reason + object
+
+    for pod, result in zip(problematic_pods[:5], results, strict=False):
+        if isinstance(result, BaseException):
+            log.warning("failed to fetch events for pod", pod=pod.name, error=str(result))
+            continue
+
+        events_list: list[KubernetesEvent] = result
+        for event in events_list:
+            # Create unique key for deduplication
+            event_key = f"{event.reason}:{event.message}:{event.involved_object.get('name', '')}"
+            if event_key not in seen_events:
+                seen_events.add(event_key)
+                all_events.append(event)
+
+    return all_events
 
 
 async def _fetch_deployment(
@@ -487,10 +638,44 @@ def _detect_kubernetes_issues(
                     f"variables configured"
                 )
 
-    # Check warning events
-    crash_events = [e for e in events if e.reason in ("BackOff", "Killing", "Unhealthy")]
-    for event in crash_events[:3]:  # Limit to top 3
-        issues.append(f"Event: {event.reason} - {event.message[:100]}")
+    # Check warning events - expanded to cover more critical event types
+    # These events are particularly useful for diagnosing scheduling and volume issues
+    critical_event_reasons = {
+        # Scheduling issues
+        "FailedScheduling": "Pod cannot be scheduled",
+        "NodeNotReady": "Node is not ready",
+        "InsufficientMemory": "Insufficient memory on nodes",
+        "InsufficientCPU": "Insufficient CPU on nodes",
+        "Unschedulable": "Pod is unschedulable",
+        # Volume/PVC issues
+        "FailedAttachVolume": "Volume attach failed",
+        "FailedMount": "Volume mount failed",
+        "VolumeBindingFailed": "PVC binding failed",
+        "ProvisioningFailed": "Volume provisioning failed",
+        # Container issues
+        "BackOff": "Container back-off",
+        "Killing": "Container being killed",
+        "Unhealthy": "Container health check failed",
+        "FailedPreStopHook": "PreStop hook failed",
+        "FailedPostStartHook": "PostStart hook failed",
+        # Image issues
+        "Failed": "Container operation failed",
+        "ErrImagePull": "Image pull failed",
+        "ImagePullBackOff": "Image pull back-off",
+        "InvalidImageName": "Invalid image name",
+        # Network issues
+        "NetworkNotReady": "Network not ready",
+        "FailedCreatePodSandBox": "Pod sandbox creation failed",
+    }
+
+    for event in events:
+        if event.reason in critical_event_reasons and event.type == "Warning":
+            issue_prefix = critical_event_reasons[event.reason]
+            obj_name = event.involved_object.get("name", "unknown")
+            obj_kind = event.involved_object.get("kind", "resource")
+            # Truncate message but keep useful info
+            message = event.message[:150] if event.message else "No details"
+            issues.append(f"{issue_prefix} ({obj_kind}/{obj_name}): {message}")
 
     # Check deployment
     if deployment:

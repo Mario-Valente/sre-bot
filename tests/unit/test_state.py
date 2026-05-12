@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from sre_copilot.agent.state import (
+from sre_bot.agent.state import (
     AgentState,
     AlertContext,
     IncidentAnalysis,

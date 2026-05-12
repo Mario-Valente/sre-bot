@@ -7,9 +7,9 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from sre_copilot.agent.state import AgentState
-from sre_copilot.config import get_settings
-from sre_copilot.db.models import Base, Incident, IncidentFeedback
+from sre_bot.agent.state import AgentState
+from sre_bot.config import get_settings
+from sre_bot.db.models import Base, Incident, IncidentFeedback
 
 logger = structlog.get_logger()
 
