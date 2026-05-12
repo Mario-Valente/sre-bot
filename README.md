@@ -1,4 +1,4 @@
-# SRE Copilot
+# SRE bot
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
@@ -8,7 +8,7 @@ AI-powered SRE assistant for autonomous incident triage and root cause analysis.
 
 ## Overview
 
-SRE Copilot is an autonomous agent that:
+SRE bot is an autonomous agent that:
 
 - **Receives alerts** from Alertmanager webhooks or Slack channels
 - **Collects context** from Prometheus metrics, Loki logs, Tempo traces, Kubernetes API, and GitHub
@@ -20,7 +20,7 @@ SRE Copilot is an autonomous agent that:
 │ Alertmanager│────▶│             │     │         Data Collection             │
 └─────────────┘     │             │     │  ┌───────────┐  ┌───────────┐       │
                     │  SRE        │────▶│  │Prometheus │  │   Loki    │       │
-┌─────────────┐     │  Copilot    │     │  └───────────┘  └───────────┘       │
+┌─────────────┐     │  bot        │     │  └───────────┘  └───────────┘       │
 │   Slack     │◀───▶│             │     │  ┌───────────┐  ┌───────────┐       │
 └─────────────┘     │             │     │  │   Tempo   │  │ Kubernetes│       │
                     │             │     │  └───────────┘  └───────────┘       │
@@ -63,7 +63,7 @@ SRE Copilot is an autonomous agent that:
 
 ### Observability Stack
 
-SRE Copilot expects these services to be available:
+SRE bot expects these services to be available:
 
 | Service | Purpose | Default URL |
 |---------|---------|-------------|
@@ -77,11 +77,11 @@ SRE Copilot expects these services to be available:
 
 ```bash
 # Add the Helm repository (if published)
-helm repo add sre-copilot https://mario-valente.github.io/sre-bot
+helm repo add sre-bot https://mario-valente.github.io/sre-bot
 
 # Install with custom values
-helm install sre-copilot sre-copilot/sre-copilot \
-  --namespace sre-copilot \
+helm install sre-bot sre-bot/sre-bot \
+  --namespace sre-bot \
   --create-namespace \
   -f values.yaml
 ```
@@ -89,8 +89,8 @@ helm install sre-copilot sre-copilot/sre-copilot \
 Or install from source:
 
 ```bash
-helm install sre-copilot ./k8s/charts/sre-bot \
-  --namespace sre-copilot \
+helm install sre-bot ./k8s/charts/sre-bot \
+  --namespace sre-bot \
   --create-namespace \
   --set config.llmProvider=openai \
   --set secrets.openaiApiKey=$OPENAI_API_KEY \
@@ -101,17 +101,17 @@ helm install sre-copilot ./k8s/charts/sre-bot \
 ### Option 2: Docker
 
 ```bash
-docker build -t sre-copilot:latest .
+docker build -t sre-bot:latest .
 
 docker run -d \
-  --name sre-copilot \
+  --name sre-bot \
   -p 8000:8000 \
   -e LLM_PROVIDER=openai \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
   -e SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN \
   -e SLACK_APP_TOKEN=$SLACK_APP_TOKEN \
   -e PROMETHEUS_URL=http://prometheus:9090 \
-  sre-copilot:latest
+  sre-bot:latest
 ```
 
 ### Option 3: Local Development
@@ -133,7 +133,7 @@ cp .env.example .env
 # Edit .env with your credentials
 
 # Run
-sre-copilot
+sre-bot
 ```
 
 ## Configuration
@@ -189,17 +189,17 @@ Configure Alertmanager to send alerts:
 ```yaml
 # alertmanager.yml
 receivers:
-  - name: 'sre-copilot'
+  - name: 'sre-bot'
     webhook_configs:
-      - url: 'http://sre-copilot:8000/webhook/alertmanager'
+      - url: 'http://sre-bot:8000/webhook/alertmanager'
         send_resolved: false
 
 route:
-  receiver: 'sre-copilot'
+  receiver: 'sre-bot'
   routes:
     - match:
         severity: critical
-      receiver: 'sre-copilot'
+      receiver: 'sre-bot'
 ```
 
 ### Via Slack
@@ -208,7 +208,7 @@ route:
 
 **Direct Mention**:
 ```
-@sre-copilot analyze payment-api
+@sre-bot analyze payment-api
 ```
 
 **Slash Command**:
@@ -296,7 +296,7 @@ pre-commit run --all-files
 
 ```
 sre-bot/
-├── src/sre_copilot/
+├── src/sre_bot/
 │   ├── agent/           # LangGraph agent definition
 │   │   └── nodes/       # Agent workflow nodes
 │   ├── clients/         # External service clients
