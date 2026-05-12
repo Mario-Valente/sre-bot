@@ -1,7 +1,7 @@
 # SRE bot
 
 <p align="center">
-  <span style="font-size: 100px;">🦎</span>
+  <span style="font-size: 300px;">🦎</span>
 </p>
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
