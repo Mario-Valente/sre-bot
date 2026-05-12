@@ -6,11 +6,11 @@ from datetime import timedelta
 
 import structlog
 
-from sre_copilot.agent.state import AgentState, SpanInfo, StateUpdate, TracesData
-from sre_copilot.clients.protocols import TracesQueryError
-from sre_copilot.clients.tempo import TempoClient
-from sre_copilot.config import get_settings
-from sre_copilot.queries.tempo import TraceQueryType, build_tempo_query
+from sre_bot.agent.state import AgentState, SpanInfo, StateUpdate, TracesData
+from sre_bot.clients.protocols import TracesQueryError
+from sre_bot.clients.tempo import TempoClient
+from sre_bot.config import get_settings
+from sre_bot.queries.tempo import TraceQueryType, build_tempo_query
 
 logger = structlog.get_logger()
 

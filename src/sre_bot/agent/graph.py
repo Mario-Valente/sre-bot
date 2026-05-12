@@ -4,7 +4,7 @@ import structlog
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from sre_copilot.agent.nodes import (
+from sre_bot.agent.nodes import (
     extract_context,
     fetch_github,
     fetch_kubernetes,
@@ -14,7 +14,7 @@ from sre_copilot.agent.nodes import (
     post_to_slack,
     synthesize,
 )
-from sre_copilot.agent.state import AgentState
+from sre_bot.agent.state import AgentState
 
 logger = structlog.get_logger()
 
@@ -141,7 +141,7 @@ async def run_investigation(state: AgentState) -> AgentState:
         Final state with analysis and all collected data.
 
     Example:
-        >>> from sre_copilot.agent.state import AgentState, AlertContext
+        >>> from sre_bot.agent.state import AgentState, AlertContext
         >>> alert = AlertContext(
         ...     alert_name="HighErrorRate",
         ...     severity="critical",

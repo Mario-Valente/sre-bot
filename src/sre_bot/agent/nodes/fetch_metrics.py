@@ -5,17 +5,17 @@ from datetime import timedelta
 
 import structlog
 
-from sre_copilot.agent.state import (
+from sre_bot.agent.state import (
     AgentState,
     MetricPoint,
     MetricsData,
     MetricSeries,
     StateUpdate,
 )
-from sre_copilot.clients.prometheus import PrometheusClient
-from sre_copilot.clients.protocols import MetricsQueryError
-from sre_copilot.config import get_settings
-from sre_copilot.queries.prometheus import MetricType, build_prometheus_query
+from sre_bot.clients.prometheus import PrometheusClient
+from sre_bot.clients.protocols import MetricsQueryError
+from sre_bot.config import get_settings
+from sre_bot.queries.prometheus import MetricType, build_prometheus_query
 
 logger = structlog.get_logger()
 

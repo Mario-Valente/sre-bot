@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from langchain_core.language_models import BaseChatModel
 
-from sre_copilot.config import LLMProvider, get_settings
+from sre_bot.config import LLMProvider, get_settings
 
 
 class LLMConfigError(Exception):

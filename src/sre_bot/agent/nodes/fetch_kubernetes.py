@@ -5,7 +5,7 @@ from typing import Any
 
 import structlog
 
-from sre_copilot.agent.state import (
+from sre_bot.agent.state import (
     AgentState,
     ContainerInfo,
     DeploymentInfo,
@@ -16,11 +16,11 @@ from sre_copilot.agent.state import (
     PodInfo,
     StateUpdate,
 )
-from sre_copilot.clients.kubernetes import KubernetesClient
-from sre_copilot.clients.prometheus import PrometheusClient
-from sre_copilot.clients.protocols import KubernetesQueryError, MetricsQueryError
-from sre_copilot.config import get_settings
-from sre_copilot.queries.kube_state_metrics import (
+from sre_bot.clients.kubernetes import KubernetesClient
+from sre_bot.clients.prometheus import PrometheusClient
+from sre_bot.clients.protocols import KubernetesQueryError, MetricsQueryError
+from sre_bot.config import get_settings
+from sre_bot.queries.kube_state_metrics import (
     get_deployment_health_queries,
     get_pod_health_queries,
 )

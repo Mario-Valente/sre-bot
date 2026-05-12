@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from sre_copilot.config import LLMProvider, Settings
+from sre_bot.config import LLMProvider, Settings
 
 
 class TestSettings:

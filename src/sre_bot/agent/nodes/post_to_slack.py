@@ -2,7 +2,7 @@
 
 import structlog
 
-from sre_copilot.agent.state import AgentState, IncidentAnalysis, StateUpdate
+from sre_bot.agent.state import AgentState, IncidentAnalysis, StateUpdate
 
 logger = structlog.get_logger()
 
@@ -41,7 +41,7 @@ async def post_to_slack(state: AgentState) -> StateUpdate:
         # Import here to avoid circular imports and allow mocking
         from slack_sdk.web.async_client import AsyncWebClient
 
-        from sre_copilot.config import get_settings
+        from sre_bot.config import get_settings
 
         settings = get_settings()
 

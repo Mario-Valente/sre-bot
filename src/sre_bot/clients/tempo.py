@@ -6,8 +6,8 @@ from typing import Any
 import httpx
 import structlog
 
-from sre_copilot.clients.protocols import TracesClient, TracesQueryError
-from sre_copilot.config import get_settings
+from sre_bot.clients.protocols import TracesClient, TracesQueryError
+from sre_bot.config import get_settings
 
 logger = structlog.get_logger()
 
