@@ -3,7 +3,7 @@
 from enum import StrEnum
 from string import Template
 
-from sre_copilot.queries.prometheus import _validate_label_value
+from sre_bot.queries.prometheus import _validate_label_value
 
 
 class KubeMetricType(StrEnum):
