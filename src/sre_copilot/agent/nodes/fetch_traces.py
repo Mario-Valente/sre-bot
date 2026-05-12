@@ -79,7 +79,7 @@ async def fetch_traces(state: AgentState) -> StateUpdate:
     slow_traces: list[SpanInfo] = []
     query_errors = []
 
-    for (name, _), result in zip(queries.items(), results):
+    for (name, _), result in zip(queries.items(), results, strict=False):
         if isinstance(result, Exception):
             query_errors.append(f"{name}: {str(result)}")
             continue

@@ -1,6 +1,5 @@
 """Webhook receiver for Alertmanager alerts using FastAPI."""
 
-import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
@@ -51,7 +50,7 @@ class HealthResponse(BaseModel):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     """Lifespan context manager for startup/shutdown."""
     log = logger.bind(component="webhook_server")
     log.info("webhook server starting")
@@ -101,7 +100,7 @@ def _register_routes(app: FastAPI) -> None:
     async def receive_alertmanager_webhook(
         webhook: AlertmanagerWebhook,
         background_tasks: BackgroundTasks,
-        request: Request,
+        request: Request,  # noqa: ARG001
     ) -> WebhookResponse:
         """
         Receive and process Alertmanager webhooks.
@@ -242,7 +241,7 @@ def _register_routes(app: FastAPI) -> None:
         try:
             payload = await request.json()
         except Exception:
-            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+            raise HTTPException(status_code=400, detail="Invalid JSON payload") from None
 
         # Validate required fields
         if "service_name" not in payload:
@@ -279,8 +278,8 @@ def _register_routes(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(
-        request: Request,
-        exc: Exception,
+        request: Request,  # noqa: ARG001
+        exc: Exception,  # noqa: ARG001
     ) -> JSONResponse:
         """Handle uncaught exceptions."""
         logger.exception("unhandled exception in webhook handler")
@@ -361,7 +360,7 @@ async def _process_alert(
         if final_state.get("analysis") is None:
             log.warning("investigation completed without analysis")
 
-    except Exception as e:
+    except Exception:
         log.exception("investigation failed")
 
 
@@ -427,7 +426,7 @@ async def _process_custom_alert(
             errors=len(final_state.get("errors", [])),
         )
 
-    except Exception as e:
+    except Exception:
         log.exception("custom investigation failed")
 
 

@@ -1,10 +1,10 @@
 """Pre-defined PromQL query templates for safe metric collection."""
 
-from enum import Enum
+from enum import StrEnum
 from string import Template
 
 
-class MetricType(str, Enum):
+class MetricType(StrEnum):
     """Available metric types for Prometheus queries."""
 
     CPU_USAGE = "cpu_usage"

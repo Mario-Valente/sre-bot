@@ -8,8 +8,8 @@ import structlog
 from sre_copilot.agent.state import (
     AgentState,
     MetricPoint,
-    MetricSeries,
     MetricsData,
+    MetricSeries,
     StateUpdate,
 )
 from sre_copilot.clients.prometheus import PrometheusClient
@@ -87,7 +87,7 @@ async def fetch_metrics(state: AgentState) -> StateUpdate:
     metrics_data = MetricsData()
     query_errors = []
 
-    for (name, _), result in zip(queries.items(), results):
+    for (name, _), result in zip(queries.items(), results, strict=False):
         if isinstance(result, Exception):
             query_errors.append(f"{name}: {str(result)}")
             continue

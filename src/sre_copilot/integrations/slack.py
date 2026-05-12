@@ -1,6 +1,5 @@
 """Slack integration using slack_bolt."""
 
-import asyncio
 import re
 from datetime import datetime
 
@@ -9,7 +8,6 @@ from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from slack_bolt.async_app import AsyncApp
 
 from sre_copilot.agent.graph import run_investigation
-from sre_copilot.agent.nodes.extract_context import parse_alertmanager_payload
 from sre_copilot.agent.state import AgentState, AlertContext
 from sre_copilot.config import get_settings
 
@@ -179,7 +177,7 @@ def _register_handlers(app: AsyncApp) -> None:
             cluster="unknown",
             namespace=namespace,
             timestamp=datetime.utcnow(),
-            description=f"Manual analysis requested by user",
+            description="Manual analysis requested by user",
         )
 
         await say(f":mag: Starting analysis for *{service_name}* in `{namespace}`...")
@@ -201,11 +199,10 @@ async def _trigger_manual_investigation(
     service_name: str,
     event: dict,
     say,
-    client,
+    client,  # noqa: ARG001
     log,
 ) -> None:
     """Trigger a manual investigation for a service."""
-    settings = get_settings()
 
     alert_context = AlertContext(
         alert_name="ManualInvestigation",

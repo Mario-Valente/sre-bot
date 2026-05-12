@@ -1,13 +1,13 @@
 """Application configuration via environment variables."""
 
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class LLMProvider(str, Enum):
+class LLMProvider(StrEnum):
     """Supported LLM providers."""
 
     OPENAI = "openai"

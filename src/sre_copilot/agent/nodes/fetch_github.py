@@ -275,7 +275,4 @@ def _check_recent_deploy(
             return True
 
     # Check release
-    if release and release.published_at and release.published_at >= deploy_window:
-        return True
-
-    return False
+    return bool(release and release.published_at and release.published_at >= deploy_window)

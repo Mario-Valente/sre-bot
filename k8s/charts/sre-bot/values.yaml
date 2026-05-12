@@ -1,0 +1,217 @@
+# =============================================================================
+# SRE Copilot Helm Chart Values
+# =============================================================================
+
+# -- Number of replicas
+replicaCount: 1
+
+# -- Image configuration
+image:
+  repository: sre-copilot
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# -- Image pull secrets
+imagePullSecrets: []
+
+# -- Override the name of the chart
+nameOverride: ""
+
+# -- Override the full name of the chart
+fullnameOverride: ""
+
+# =============================================================================
+# Service Account
+# =============================================================================
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# =============================================================================
+# RBAC Configuration
+# =============================================================================
+rbac:
+  # -- Specifies whether RBAC resources should be created
+  create: true
+  # -- Use ClusterRole instead of Role (for multi-namespace access)
+  clusterWide: false
+  # -- Additional rules to add to the Role/ClusterRole
+  additionalRules: []
+
+# =============================================================================
+# Pod Configuration
+# =============================================================================
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# =============================================================================
+# Service Configuration
+# =============================================================================
+service:
+  type: ClusterIP
+  port: 8000
+  # -- NodePort (only used when type is NodePort)
+  nodePort: ""
+  annotations: {}
+
+# =============================================================================
+# Ingress Configuration
+# =============================================================================
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: sre-copilot.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: sre-copilot-tls
+  #    hosts:
+  #      - sre-copilot.local
+
+# =============================================================================
+# Resource Configuration
+# =============================================================================
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# =============================================================================
+# Probes Configuration
+# =============================================================================
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 40
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 30
+
+# =============================================================================
+# Autoscaling
+# =============================================================================
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# =============================================================================
+# Node Selection
+# =============================================================================
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# =============================================================================
+# Environment Configuration
+# =============================================================================
+
+# -- LLM Configuration
+llm:
+  provider: "anthropic"
+  anthropicModel: "claude-sonnet-4-20250514"
+  temperature: "0.1"
+  maxTokens: "4096"
+
+# -- Input Sources Configuration
+input:
+  enableWebhook: "true"
+  enableSlackListener: "false"
+  webhookHost: "0.0.0.0"
+  webhookPort: "8000"
+
+# -- Observability Stack URLs (in-cluster)
+observability:
+  prometheusUrl: "http://prometheus-prometheus.monitoring.svc.cluster.local:9090"
+  lokiUrl: "http://loki-gateway.monitoring.svc.cluster.local:80"
+  tempoUrl: "http://tempo.monitoring.svc.cluster.local:3200"
+
+# -- Slack Configuration
+slack:
+  alertChannel: "alertas"
+
+# -- GitHub Configuration
+github:
+  org: ""
+
+# -- Database Configuration
+database:
+  url: "sqlite+aiosqlite:///./sre_bot.db"
+
+# -- Timeouts Configuration
+timeouts:
+  queryTimeoutSeconds: "30.0"
+  llmTimeoutSeconds: "60.0"
+
+# -- Investigation Configuration
+investigation:
+  lookbackMinutes: "30"
+  recentDeployHours: "2"
+
+# -- Kubernetes Configuration
+kubernetes:
+  enabled: "true"
+  inCluster: "true"
+
+# -- Additional environment variables from ConfigMap
+# Use this for any extra ENV vars not covered above
+extraEnv: []
+  # - name: EXTRA_VAR
+  #   value: "extra-value"
+
+# =============================================================================
+# Secrets Configuration
+# =============================================================================
+# IMPORTANT: For production, use external secrets management (e.g., External Secrets, Sealed Secrets)
+
+secrets:
+  # -- Create a secret with the values below (only for development/testing)
+  create: false
+  # -- Name of existing secret to use (if create is false)
+  existingSecret: "sre-copilot-secrets"
+  # -- Secret values (only used if create is true) - DO NOT COMMIT REAL VALUES
+  values:
+    ANTHROPIC_API_KEY: ""
+    OPENAI_API_KEY: ""
+    SLACK_BOT_TOKEN: ""
+    SLACK_APP_TOKEN: ""
+    SLACK_SIGNING_SECRET: ""
+    GITHUB_TOKEN: ""
+
+# -- Additional secrets to mount as environment variables
+extraSecrets: []
+  # - name: my-extra-secret

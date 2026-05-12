@@ -275,8 +275,12 @@ class DeploymentInfo(BaseModel):
     created_at: str | None = Field(default=None, description="Creation timestamp")
     labels: dict[str, str] = Field(default_factory=dict, description="Labels")
     annotations: dict[str, str] = Field(default_factory=dict, description="Deployment annotations")
-    pod_template_labels: dict[str, str] = Field(default_factory=dict, description="Pod template labels")
-    pod_template_annotations: dict[str, str] = Field(default_factory=dict, description="Pod template annotations")
+    pod_template_labels: dict[str, str] = Field(
+        default_factory=dict, description="Pod template labels"
+    )
+    pod_template_annotations: dict[str, str] = Field(
+        default_factory=dict, description="Pod template annotations"
+    )
     selector: dict[str, str] = Field(default_factory=dict, description="Label selector")
     min_ready_seconds: int = Field(default=0, description="Min ready seconds")
     revision_history_limit: int | None = Field(default=None, description="Revision history limit")

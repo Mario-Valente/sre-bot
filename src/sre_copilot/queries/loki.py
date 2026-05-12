@@ -1,10 +1,10 @@
 """Pre-defined LogQL query templates for safe log collection."""
 
-from enum import Enum
+from enum import StrEnum
 from string import Template
 
 
-class LogQueryType(str, Enum):
+class LogQueryType(StrEnum):
     """Available log query types for Loki."""
 
     ERROR_LOGS = "error_logs"

@@ -1,0 +1,48 @@
+==============================================================================
+ SRE Copilot has been deployed!
+==============================================================================
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+1. Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ (first $host.paths).path }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "sre-copilot.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "http://$NODE_IP:$NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "sre-copilot.fullname" . }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "sre-copilot.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  echo "Visit http://127.0.0.1:{{ .Values.service.port }}"
+{{- end }}
+
+2. Check the deployment status:
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/name={{ include "sre-copilot.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+3. View logs:
+  kubectl --namespace {{ .Release.Namespace }} logs -f deployment/{{ include "sre-copilot.fullname" . }}
+
+{{- if not .Values.secrets.create }}
+
+4. IMPORTANT: Create the secrets before the pod can start:
+  kubectl create secret generic {{ .Values.secrets.existingSecret }} \
+    --namespace {{ .Release.Namespace }} \
+    --from-literal=ANTHROPIC_API_KEY=your-key \
+    --from-literal=SLACK_BOT_TOKEN=xoxb-xxx \
+    --from-literal=SLACK_APP_TOKEN=xapp-xxx \
+    --from-literal=SLACK_SIGNING_SECRET=xxx \
+    --from-literal=GITHUB_TOKEN=ghp_xxx
+{{- end }}
+
+5. Send a test webhook:
+  curl -X POST http://localhost:{{ .Values.service.port }}/webhook/alertmanager \
+    -H "Content-Type: application/json" \
+    -d '{"alerts": [{"labels": {"alertname": "TestAlert"}}]}'
+
+==============================================================================

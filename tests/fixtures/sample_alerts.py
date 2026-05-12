@@ -1,7 +1,5 @@
 """Sample alert payloads for testing."""
 
-from datetime import datetime
-
 # Sample Alertmanager webhook payload
 ALERTMANAGER_WEBHOOK_FIRING = {
     "version": "4",

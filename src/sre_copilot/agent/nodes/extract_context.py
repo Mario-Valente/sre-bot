@@ -151,10 +151,10 @@ def parse_alertmanager_payload(payload: dict) -> AlertContext:
     starts_at = alert_data.get("startsAt", "")
     timestamp = datetime.utcnow()
     if starts_at:
-        try:
+        import contextlib
+
+        with contextlib.suppress(ValueError):
             timestamp = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
-        except ValueError:
-            pass
 
     # Map severity
     severity_raw = _label("severity", "warning").lower()

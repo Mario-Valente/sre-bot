@@ -1,10 +1,10 @@
 """Pre-defined TraceQL query templates for safe trace collection."""
 
-from enum import Enum
+from enum import StrEnum
 from string import Template
 
 
-class TraceQueryType(str, Enum):
+class TraceQueryType(StrEnum):
     """Available trace query types for Tempo."""
 
     ERROR_TRACES = "error_traces"

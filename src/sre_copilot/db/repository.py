@@ -1,7 +1,7 @@
 """Repository for database operations."""
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Sequence
 
 import structlog
 from sqlalchemy import select

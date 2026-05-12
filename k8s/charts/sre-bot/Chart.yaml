@@ -1,0 +1,17 @@
+apiVersion: v2
+name: sre-copilot
+description: SRE Copilot - AI-powered SRE assistant for incident investigation and response
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - sre
+  - copilot
+  - ai
+  - observability
+  - incident-response
+maintainers:
+  - name: SRE Team
+home: https://github.com/Mario-Valente/sre-bot
+sources:
+  - https://github.com/Mario-Valente/sre-bot

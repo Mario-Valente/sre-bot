@@ -3,8 +3,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 from sre_copilot.config import LLMProvider, Settings
 
 

@@ -1,12 +1,12 @@
 """Pre-defined PromQL query templates for Kube State Metrics."""
 
-from enum import Enum
+from enum import StrEnum
 from string import Template
 
 from sre_copilot.queries.prometheus import _validate_label_value
 
 
-class KubeMetricType(str, Enum):
+class KubeMetricType(StrEnum):
     """Available Kube State Metrics types."""
 
     # Pod metrics

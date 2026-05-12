@@ -76,7 +76,7 @@ async def fetch_logs(state: AgentState) -> StateUpdate:
     all_entries: list[LogEntry] = []
     query_errors = []
 
-    for (name, _), result in zip(queries.items(), results):
+    for (name, _), result in zip(queries.items(), results, strict=False):
         if isinstance(result, Exception):
             query_errors.append(f"{name}: {str(result)}")
             continue
@@ -207,7 +207,6 @@ def _extract_patterns(entries: list[LogEntry]) -> list[str]:
     pattern_counter: Counter = Counter()
 
     for entry in entries:
-        normalized = _normalize_message(entry.message)
         # Extract key phrases
         phrases = _extract_key_phrases(entry.message)
         for phrase in phrases:

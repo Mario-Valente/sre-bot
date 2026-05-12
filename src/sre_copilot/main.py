@@ -98,7 +98,7 @@ def setup_signal_handlers(loop: asyncio.AbstractEventLoop) -> None:
     """Set up signal handlers for graceful shutdown."""
     log = logger.bind(component="signals")
 
-    def handle_signal(signum: int, frame) -> None:
+    def handle_signal(signum: int, frame) -> None:  # noqa: ARG001
         log.info("received shutdown signal", signal=signal.Signals(signum).name)
         for task in asyncio.all_tasks(loop):
             task.cancel()
@@ -173,7 +173,7 @@ def main() -> NoReturn:
         log.info("interrupted by user")
     except asyncio.CancelledError:
         log.info("shutdown complete")
-    except Exception as e:
+    except Exception:
         log.exception("fatal error")
         sys.exit(1)
     finally:

@@ -8,13 +8,12 @@ from pydantic import ValidationError
 from sre_copilot.agent.state import (
     AgentState,
     AlertContext,
-    GitHubData,
     IncidentAnalysis,
     LogEntry,
     LogsData,
     MetricPoint,
-    MetricSeries,
     MetricsData,
+    MetricSeries,
     SpanInfo,
     TracesData,
 )

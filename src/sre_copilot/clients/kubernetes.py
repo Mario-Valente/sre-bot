@@ -399,7 +399,9 @@ class KubernetesClient:
                 "labels": dict(deployment.metadata.labels or {}),
                 "annotations": dict(deployment.metadata.annotations or {}),
                 "pod_template_labels": dict(deployment.spec.template.metadata.labels or {}),
-                "pod_template_annotations": dict(deployment.spec.template.metadata.annotations or {}),
+                "pod_template_annotations": dict(
+                    deployment.spec.template.metadata.annotations or {}
+                ),
                 "selector": dict(deployment.spec.selector.match_labels or {}),
                 "min_ready_seconds": deployment.spec.min_ready_seconds or 0,
                 "revision_history_limit": deployment.spec.revision_history_limit,

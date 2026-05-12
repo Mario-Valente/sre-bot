@@ -2,17 +2,17 @@
 
 import pytest
 
-from sre_copilot.queries.prometheus import (
-    MetricType,
-    QueryValidationError,
-    build_prometheus_query,
-    get_all_metric_queries,
-)
 from sre_copilot.queries.loki import (
     LogQueryType,
     LogQueryValidationError,
     build_loki_query,
     get_incident_log_queries,
+)
+from sre_copilot.queries.prometheus import (
+    MetricType,
+    QueryValidationError,
+    build_prometheus_query,
+    get_all_metric_queries,
 )
 from sre_copilot.queries.tempo import (
     TraceQueryType,

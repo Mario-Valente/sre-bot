@@ -183,7 +183,9 @@ def _build_analysis_prompt(state: AgentState) -> str:
                 # Pod conditions
                 for cond in pod.conditions:
                     if cond.status != "True":
-                        k8s_section += f"    - Condition {cond.type}: {cond.status} ({cond.reason})\n"
+                        k8s_section += (
+                            f"    - Condition {cond.type}: {cond.status} ({cond.reason})\n"
+                        )
 
                 # Container details with new fields
                 for container in pod.containers:
@@ -202,7 +204,9 @@ def _build_analysis_prompt(state: AgentState) -> str:
 
                     # Environment variables
                     if container.env_vars:
-                        k8s_section += f"      - Environment Variables: {len(container.env_vars)} set\n"
+                        k8s_section += (
+                            f"      - Environment Variables: {len(container.env_vars)} set\n"
+                        )
                         for key, value in list(container.env_vars.items())[:3]:
                             k8s_section += f"        - {key}={value if len(str(value)) < 50 else str(value)[:47] + '...'}\n"
                         if len(container.env_vars) > 3:
@@ -219,7 +223,7 @@ def _build_analysis_prompt(state: AgentState) -> str:
 
                     # Security context
                     if container.security_context:
-                        k8s_section += f"      - Security Context: "
+                        k8s_section += "      - Security Context: "
                         sc_items = []
                         if container.security_context.get("privileged"):
                             sc_items.append("PRIVILEGED")
@@ -239,7 +243,9 @@ def _build_analysis_prompt(state: AgentState) -> str:
                         k8s_section += f"failureThreshold={probe.get('failure_threshold')}, "
                         k8s_section += f"periodSeconds={probe.get('period_seconds')}\n"
                         if probe.get("type") == "exec" and probe.get("exec", {}).get("command"):
-                            k8s_section += f"        - Command: {' '.join(probe['exec']['command'])}\n"
+                            k8s_section += (
+                                f"        - Command: {' '.join(probe['exec']['command'])}\n"
+                            )
 
                     if container.liveness_probe:
                         probe = container.liveness_probe
@@ -270,12 +276,15 @@ def _build_analysis_prompt(state: AgentState) -> str:
             if dep.volumes:
                 k8s_section += f"  - Volumes Configured: {len(dep.volumes)}\n"
                 for vol in dep.volumes[:3]:
-                    vol_type = vol.get('type', 'unknown')
+                    vol_type = vol.get("type", "unknown")
                     k8s_section += f"    - {vol.get('name')}: type={vol_type}\n"
 
             if dep.annotations:
-                k8s_section += f"  - Key Annotations: "
-                k8s_section += ", ".join([f"{k}={v[:30]}" for k, v in list(dep.annotations.items())[:2]]) + "\n"
+                k8s_section += "  - Key Annotations: "
+                k8s_section += (
+                    ", ".join([f"{k}={v[:30]}" for k, v in list(dep.annotations.items())[:2]])
+                    + "\n"
+                )
 
         # Events
         if k8s.warning_events:
@@ -297,19 +306,21 @@ def _build_analysis_prompt(state: AgentState) -> str:
         if k8s.kube_state_metrics:
             ksm = k8s.kube_state_metrics
             if ksm.container_waiting_reasons:
-                k8s_section += f"\n**Containers Waiting:**\n"
+                k8s_section += "\n**Containers Waiting:**\n"
                 for waiting in ksm.container_waiting_reasons[:3]:
                     k8s_section += f"  - {waiting.get('pod')}/{waiting.get('container')}: {waiting.get('reason')}\n"
 
             if ksm.container_terminated_reasons:
-                k8s_section += f"\n**Containers Terminated:**\n"
+                k8s_section += "\n**Containers Terminated:**\n"
                 for term in ksm.container_terminated_reasons[:3]:
-                    k8s_section += f"  - {term.get('pod')}/{term.get('container')}: {term.get('reason')}\n"
+                    k8s_section += (
+                        f"  - {term.get('pod')}/{term.get('container')}: {term.get('reason')}\n"
+                    )
 
             if ksm.container_restarts:
                 high_restarts = {k: v for k, v in ksm.container_restarts.items() if v > 3}
                 if high_restarts:
-                    k8s_section += f"\n**High Container Restarts:**\n"
+                    k8s_section += "\n**High Container Restarts:**\n"
                     for pod, count in high_restarts.items():
                         k8s_section += f"  - {pod}: {count} restarts\n"
 
@@ -391,7 +402,7 @@ Respond with a JSON object containing:
 - summary: Brief 1-2 sentence summary
 - probable_root_cause: Primary hypothesis (be specific about the root cause)
 - contributing_factors: List of secondary factors
-- evidence: List of data points supporting the hypothesis  
+- evidence: List of data points supporting the hypothesis
 - suggested_actions: List of immediate next steps
 - confidence: "high", "medium", or "low"
 - needs_human_escalation: true/false

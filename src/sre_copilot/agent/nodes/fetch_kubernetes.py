@@ -112,7 +112,7 @@ async def fetch_kubernetes(state: AgentState) -> StateUpdate:
 
             log_results = await asyncio.gather(*log_tasks, return_exceptions=True)
 
-            for pod, result in zip(pods[:3], log_results):
+            for pod, result in zip(pods[:3], log_results, strict=False):
                 if isinstance(result, Exception):
                     query_errors.append(f"Logs for {pod.name}: {str(result)}")
                 elif result:
@@ -338,7 +338,7 @@ async def _fetch_kube_state_metrics(
 
     query_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    for name, result in zip(query_names, query_results):
+    for name, result in zip(query_names, query_results, strict=False):
         if isinstance(result, Exception):
             log.warning("kube state query failed", query=name, error=str(result))
             results[name] = []
@@ -352,7 +352,7 @@ async def _fetch_kube_state_metrics(
 async def _safe_prometheus_query(
     client: PrometheusClient,
     query: str,
-    log,
+    log,  # noqa: ARG001
 ) -> list[dict[str, Any]]:
     """Execute Prometheus query with error handling."""
     try:
@@ -477,7 +477,11 @@ def _detect_kubernetes_issues(
                         )
 
             # Check for missing environment variables or suspicious configurations
-            if not container.env_vars and container.command and "java" in str(container.command).lower():
+            if (
+                not container.env_vars
+                and container.command
+                and "java" in str(container.command).lower()
+            ):
                 issues.append(
                     f"Java application {container.name} in {pod.name} has no environment "
                     f"variables configured"

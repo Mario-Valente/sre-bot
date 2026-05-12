@@ -1,7 +1,5 @@
 """LangGraph definition for the SRE Copilot agent."""
 
-from typing import Literal
-
 import structlog
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph

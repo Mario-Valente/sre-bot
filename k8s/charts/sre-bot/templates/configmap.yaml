@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sre-copilot.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sre-copilot.labels" . | nindent 4 }}
+data:
+  # LLM Configuration
+  LLM_PROVIDER: {{ .Values.llm.provider | quote }}
+  ANTHROPIC_MODEL: {{ .Values.llm.anthropicModel | quote }}
+  LLM_TEMPERATURE: {{ .Values.llm.temperature | quote }}
+  LLM_MAX_TOKENS: {{ .Values.llm.maxTokens | quote }}
+
+  # Input Sources
+  ENABLE_WEBHOOK: {{ .Values.input.enableWebhook | quote }}
+  ENABLE_SLACK_LISTENER: {{ .Values.input.enableSlackListener | quote }}
+  WEBHOOK_HOST: {{ .Values.input.webhookHost | quote }}
+  WEBHOOK_PORT: {{ .Values.input.webhookPort | quote }}
+
+  # Observability Stack
+  PROMETHEUS_URL: {{ .Values.observability.prometheusUrl | quote }}
+  LOKI_URL: {{ .Values.observability.lokiUrl | quote }}
+  TEMPO_URL: {{ .Values.observability.tempoUrl | quote }}
+
+  # Slack
+  SLACK_ALERT_CHANNEL: {{ .Values.slack.alertChannel | quote }}
+
+  # GitHub
+  GITHUB_ORG: {{ .Values.github.org | quote }}
+
+  # Database
+  DATABASE_URL: {{ .Values.database.url | quote }}
+
+  # Timeouts
+  QUERY_TIMEOUT_SECONDS: {{ .Values.timeouts.queryTimeoutSeconds | quote }}
+  LLM_TIMEOUT_SECONDS: {{ .Values.timeouts.llmTimeoutSeconds | quote }}
+
+  # Investigation
+  LOOKBACK_MINUTES: {{ .Values.investigation.lookbackMinutes | quote }}
+  RECENT_DEPLOY_HOURS: {{ .Values.investigation.recentDeployHours | quote }}
+
+  # Kubernetes
+  KUBERNETES_ENABLED: {{ .Values.kubernetes.enabled | quote }}
+  KUBERNETES_IN_CLUSTER: {{ .Values.kubernetes.inCluster | quote }}

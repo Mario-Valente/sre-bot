@@ -1,7 +1,6 @@
 """LLM factory for dynamic provider selection based on configuration."""
 
 from functools import lru_cache
-from typing import cast
 
 from langchain_core.language_models import BaseChatModel
 

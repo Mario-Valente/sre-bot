@@ -93,16 +93,12 @@ def _format_analysis_blocks(alert, analysis: IncidentAnalysis) -> list[dict]:
     # Determine emoji based on confidence and escalation
     if analysis.needs_human_escalation:
         emoji = ":rotating_light:"
-        color = "danger"
     elif analysis.confidence == "high":
         emoji = ":white_check_mark:"
-        color = "good"
     elif analysis.confidence == "medium":
         emoji = ":warning:"
-        color = "warning"
     else:
         emoji = ":question:"
-        color = "#808080"
 
     blocks = [
         # Header
@@ -191,7 +187,7 @@ def _format_analysis_blocks(alert, analysis: IncidentAnalysis) -> list[dict]:
                 },
                 {
                     "type": "mrkdwn",
-                    "text": f":robot_face: _Automated analysis by SRE Copilot_",
+                    "text": ":robot_face: _Automated analysis by SRE Copilot_",
                 },
             ],
         }
