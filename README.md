@@ -1,7 +1,7 @@
 # SRE bot
 
 <p align="center">
-  <span style="font-size: 300px;">🦎</span>
+  <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f98e.svg" alt="Lagarto" width="120"/>
 </p>
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
